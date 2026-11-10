@@ -1,5 +1,7 @@
 import { store } from './core/state-store.js';
 import { AgroMapEngine } from './components/map-engine.js';
+import { backendApi } from './services/backend-api.js';
+import { AgroApiService } from './services/api.js';
 
 const personaConfig = {
   BEE_PRO: {
@@ -51,6 +53,7 @@ const appState = {
 
 let appMapEngine = null;
 let pendingHiveCoordinates = null;
+const publicApi = new AgroApiService();
 
 const $ = (id) => document.getElementById(id);
 
@@ -234,6 +237,13 @@ function toggleLeftSidebar() {
   const sidebar = $('left-sidebar');
   if (!sidebar) return;
   appState.sidebarCollapsed = !appState.sidebarCollapsed;
+  const workspace = $('app-workspace');
+  if (workspace) {
+    workspace.classList.toggle(
+      'mobile-sidebar-collapsed',
+      appState.sidebarCollapsed && window.matchMedia('(max-width: 767px)').matches
+    );
+  }
   sidebar.classList.toggle('w-0', appState.sidebarCollapsed);
   sidebar.classList.toggle('overflow-hidden', appState.sidebarCollapsed);
   sidebar.classList.toggle('opacity-0', appState.sidebarCollapsed);
@@ -310,7 +320,8 @@ function closeUserDashboardModal() {
   modal.classList.add('hidden');
 }
 
-function handleLogoutUser() {
+async function handleLogoutUser() {
+  try { await backendApi.logout(); } catch {}
   store.setState({ currentUser: null });
   syncAuthUi();
   const headerGuestControls = $('header-guest-controls');
@@ -485,10 +496,21 @@ function normalizeQuery(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, '');
 }
 
-function handleEntityVerification() {
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+async function handleEntityVerification() {
   const input = $('ico-input');
   const value = input ? input.value.trim() : '';
   const panel = $('analysis-content');
+  const spinner = $('search-spinner');
 
   if (!panel) return;
   if (!value) {
@@ -499,33 +521,61 @@ function handleEntityVerification() {
 
   const state = store.getState();
   const query = normalizeQuery(value);
-  const match = [...state.entities].find((entity) => {
+  const localMatch = [...state.entities].find((entity) => {
     const ico = normalizeQuery(entity.ico);
     const name = normalizeQuery(entity.name);
     const city = normalizeQuery(entity.city);
     const address = normalizeQuery(entity.address);
     return ico.includes(query) || name.includes(query) || city.includes(query) || address.includes(query);
   });
+  let match = null;
+
+  if (spinner) spinner.classList.remove('hidden');
+  try {
+    if (/^\d{6,10}$/.test(value.replace(/\s/g, ''))) {
+      match = await backendApi.verifyEntity(value);
+      if (!match && localMatch) match = localMatch;
+    } else {
+      const results = await backendApi.searchEntities(value);
+      match = results[0] || localMatch;
+    }
+  } catch (error) {
+    if (!backendApi.isUnavailable(error) && error.status !== 404) {
+      showToast(error.message || 'Vyhľadávanie subjektu zlyhalo', 'warning');
+    }
+    match = localMatch;
+    if (!match && /^\d{6,10}$/.test(value.replace(/\s/g, '')) && backendApi.isUnavailable(error)) {
+      match = await publicApi.fetchEntityByICO(value);
+    }
+  } finally {
+    if (spinner) spinner.classList.add('hidden');
+  }
 
   if (!match) {
-    panel.innerHTML = `<div class="text-amber-700 font-bold">Nenašiel sa subjekt pre: <span class="font-mono text-slate-800">${value}</span></div>`;
+    panel.innerHTML = `<div class="text-amber-700 font-bold">Nenašiel sa subjekt pre: <span class="font-mono text-slate-800">${escapeHtml(value)}</span></div>`;
     showToast('Subjekt nebol nájdený v lokálnom registri.', 'warning');
     return;
   }
 
+  if (!Number.isFinite(Number(match.lat)) || !Number.isFinite(Number(match.lng))) {
+    const position = await publicApi.geocodeAddress(match.address || match.city || match.name, match.city || '');
+    match = { ...match, lat: position.lat, lng: position.lng };
+  }
+
   store.setState({ activeEntity: match });
+  if (store.upsertEntity) store.upsertEntity(match);
   if (appMapEngine) {
     appMapEngine.renderCompanyMarker(match.lat, match.lng, match.name, match.ico, match.address);
     appMapEngine.renderLpisParcels(match.ico);
   }
 
-  const ownedParcels = state.lpisParcels.filter((parcel) => parcel.ownerIco === match.ico);
+  const ownedParcels = store.getState().lpisParcels.filter((parcel) => parcel.ownerIco === match.ico);
   panel.innerHTML = `
     <div class="space-y-2">
       <div class="font-extrabold text-emerald-800 uppercase tracking-wider">Overovanie subjektu</div>
-      <div><span class="font-bold text-slate-800">Názov:</span> ${match.name}</div>
-      <div><span class="font-bold text-slate-800">IČO:</span> <span class="font-mono text-slate-800">${match.ico}</span></div>
-      <div><span class="font-bold text-slate-800">Sídlo:</span> ${match.address}</div>
+      <div><span class="font-bold text-slate-800">Názov:</span> ${escapeHtml(match.name)}</div>
+      <div><span class="font-bold text-slate-800">IČO:</span> <span class="font-mono text-slate-800">${escapeHtml(match.ico)}</span></div>
+      <div><span class="font-bold text-slate-800">Sídlo:</span> ${escapeHtml(match.address)}</div>
       <div>RegisterUZ: <span class="text-emerald-700 font-bold">Aktívny</span></div>
       <div>LPIS bloky: <span class="text-emerald-700 font-bold">${ownedParcels.length} záznamov</span></div>
       <div>Stav: <span class="text-emerald-700 font-bold">Pripravené na mapu</span></div>
@@ -672,7 +722,7 @@ function quickDemoLogin(email, password) {
   showToast(`Prihlásený demo používateľ: ${safeUser.name}`, 'success');
 }
 
-function submitLoginForm(event) {
+async function submitLoginForm(event) {
   event.preventDefault();
   const email = $('login-email')?.value?.trim() || '';
   const password = $('login-password')?.value || '';
@@ -682,22 +732,34 @@ function submitLoginForm(event) {
     return;
   }
 
-  const users = getStoredUsers();
-  const match = users.find((user) => user.email.toLowerCase() === email.toLowerCase() && user.passwordHash === password);
+  try {
+    const user = await backendApi.login(email, password);
+    store.setState({ currentUser: user });
+    syncAuthUi();
+    closeAuthModal();
+    showToast(`Vitajte, ${user.name}`, 'success');
+    return;
+  } catch (error) {
+    if (!backendApi.isUnavailable(error)) {
+      showToast(error.status === 401 ? 'Nesprávny e-mail alebo heslo' : error.message, 'warning');
+      return;
+    }
+  }
 
-  if (!match) {
-    showToast('Nesprávny e-mail alebo heslo', 'warning');
+  const localUser = getStoredUsers().find((user) => user.email.toLowerCase() === email.toLowerCase() && user.passwordHash === password);
+  if (!localUser) {
+    showToast('Backend nie je dostupný a lokálny účet sa nenašiel', 'warning');
     return;
   }
 
-  const safeUser = sanitizeUser(match);
+  const safeUser = sanitizeUser(localUser);
   store.setState({ currentUser: safeUser });
   syncAuthUi();
   closeAuthModal();
-  showToast(`Vitajte, ${safeUser.name}`, 'success');
+  showToast(`Vitajte, ${safeUser.name} (lokálny režim)`, 'info');
 }
 
-function submitRegisterForm(event) {
+async function submitRegisterForm(event) {
   event.preventDefault();
 
   const roleInput = document.querySelector('input[name="reg-role"]:checked');
@@ -712,6 +774,31 @@ function submitRegisterForm(event) {
   if (!name || !email || !password) {
     showToast('Vyplňte povinné polia pre registráciu', 'warning');
     return;
+  }
+
+  const request = {
+    role,
+    name,
+    email,
+    password,
+    ico: role === 'AGRO' ? ico : '',
+    cevz: role === 'BEEKEEPER' ? ico : '',
+    phone,
+    address
+  };
+
+  try {
+    const user = await backendApi.register(request);
+    store.setState({ currentUser: user });
+    syncAuthUi();
+    closeAuthModal();
+    showToast('Účet bol vytvorený v databáze', 'success');
+    return;
+  } catch (error) {
+    if (!backendApi.isUnavailable(error)) {
+      showToast(error.code === 'EMAIL_ALREADY_EXISTS' ? 'Účet s týmto e-mailom už existuje' : error.message, 'warning');
+      return;
+    }
   }
 
   const users = getStoredUsers();
@@ -739,7 +826,7 @@ function submitRegisterForm(event) {
   store.setState({ currentUser: sanitizeUser(newUser) });
   syncAuthUi();
   closeAuthModal();
-  showToast('Registrácia bola úspešne dokončená', 'success');
+  showToast('Registrácia bola uložená lokálne (backend nie je dostupný)', 'info');
 }
 
 function switchDashboardSection(tabName) {
@@ -943,6 +1030,14 @@ function initUi() {
   setBaseMap('ortho');
   syncAuthUi();
   refreshDashboardStats();
+  if (localStorage.getItem('agrogis_api_token_v1')) {
+    backendApi.getCurrentUser().then((user) => {
+      if (user) {
+        store.setState({ currentUser: user });
+        syncAuthUi();
+      }
+    }).catch(() => backendApi.logout());
+  }
 
   const authModal = $('auth-modal');
   const userDashboardModal = $('user-dashboard-modal');

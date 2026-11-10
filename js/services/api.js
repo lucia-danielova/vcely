@@ -132,23 +132,6 @@ export class AgroApiService {
             clearTimeout(timeoutId);
         }
 
-        // C. Záložný generátor pre ľubovoľné 8-miestne slovenské IČO pri nedostupnosti štátneho servera
-        if (/^\d{6,10}$/.test(cleanIco)) {
-            const padded = cleanIco.padStart(8, '0');
-            const seed = parseInt(padded.slice(-4), 10) || 100;
-            const region = SLOVAK_KU_CATALOG[seed % SLOVAK_KU_CATALOG.length];
-            return {
-                ico: padded,
-                name: `Poľnohospodársky subjekt IČO ${padded} (${region.name})`,
-                type: 'Registrovaný agropodnik / SHR',
-                address: `Hospodársky dvor č. ${10 + (seed % 90)}, ${region.obec}`,
-                city: region.name,
-                lat: region.lat + ((seed % 7) - 3) * 0.004,
-                lng: region.lng + ((seed % 5) - 2) * 0.005,
-                source: 'Národný register RÚZ (Offline záložný režim)'
-            };
-        }
-
         return null;
     }
 
