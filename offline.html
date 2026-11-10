@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#047857">
+  <title>AGROGIS Slovensko | Offline</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/agrogis-192.png">
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; background: #f8faf7; color: #17352b; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; }
+    main { width: min(100%, 440px); text-align: center; }
+    img { width: 88px; height: 88px; }
+    h1 { margin: 20px 0 8px; font-size: 24px; }
+    p { margin: 0; line-height: 1.6; color: #52645c; }
+    button { margin-top: 24px; border: 0; border-radius: 10px; padding: 12px 18px; background: #047857; color: #fff; font: inherit; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="./assets/agrogis-192.png" alt="">
+    <h1>AGROGIS je momentálne offline</h1>
+    <p>Na načítanie mapy, registrov a aktuálnych údajov sa pripojte na internet.</p>
+    <button type="button" onclick="window.location.reload()">Skúsiť znova</button>
+  </main>
+</body>
+</html>

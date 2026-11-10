@@ -1060,7 +1060,15 @@ function initMapApp() {
   }
 }
 
+function registerAppServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./service-worker.js').catch((error) => {
+    console.warn('[AGROGIS] Service worker registration failed:', error);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  registerAppServiceWorker();
   initUi();
   initMapApp();
   if (window.L && appMapEngine) {
