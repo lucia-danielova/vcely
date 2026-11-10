@@ -112,16 +112,15 @@ async function fetchRegisterUz(ico) {
 }
 
 app.get('/api/health', async (req, res) => {
-  let database = 'not_configured';
-  if (pool) {
-    try {
-      await pool.query('SELECT 1');
-      database = 'connected';
-    } catch {
-      database = 'unavailable';
-    }
+  if (!pool) {
+    return sendError(res, 503, 'DATABASE_NOT_CONFIGURED');
   }
-  res.json({ success: true, service: 'agrogis-api', database });
+  try {
+    await pool.query('SELECT 1');
+    res.json({ success: true, service: 'agrogis-api', database: 'connected' });
+  } catch {
+    sendError(res, 503, 'DATABASE_UNAVAILABLE');
+  }
 });
 
 app.post('/api/auth/register', async (req, res, next) => {

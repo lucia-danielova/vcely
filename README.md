@@ -209,3 +209,13 @@ AGROGIS SLOVENSKO je navrhnutý ako geopriestorová platforma pre včelárov a p
 - jednoduché a prehľadné použitie v modernom webovom rozhraní
 
 Tento dokument slúži ako základ pre ďalší vývoj, implementáciu, testovanie a nasadenie projektu v produkčnom prostredí.
+
+## Nasadenie PWA a API
+
+Projekt obsahuje [Render Blueprint](render.yaml), ktorý vytvorí Node.js webovú službu a PostgreSQL 16 databázu s PostGIS. Webová služba obsluhuje frontend aj `/api` z rovnakej HTTPS adresy; pri štarte sa bezpečne a opakovane spustí databázová migrácia. Tajný JWT kľúč generuje Render a nie je uložený v repozitári.
+
+1. Otvor [nasadenie AGROGIS na Renderi](https://render.com/deploy?repo=https://github.com/lucia-danielova/vcely).
+2. Prihlás sa do Renderu, pripoj GitHub repozitár a potvrď vytvorenie služieb podľa Blueprintu.
+3. Po úspešnom deployi použi URL služby Render pre PWA, registráciu aj API. Endpoint `/api/health` musí vrátiť `database: connected`.
+
+Blueprint používa bezplatné plány na testovanie. Bezplatná webová služba môže po nečinnosti zaspávať a bezplatná databáza má časové a úložné limity; pred produkčným použitím s trvalými účtami treba zvoliť databázový plán s trvalým úložiskom.

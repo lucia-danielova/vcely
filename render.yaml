@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: agrogis-app
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run db:migrate && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agrogis-db
+          property: connectionString
+      - key: PGSSL
+        value: require
+      - key: PGPOOL_MAX
+        value: "5"
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: agrogis-db
+    databaseName: agrogis
+    user: agrogis
+    plan: free
+    postgresMajorVersion: "16"
