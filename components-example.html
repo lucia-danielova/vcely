@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGROGIS - Príklad Integrácie Komponentov</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            background: #f8faf7;
+        }
+        
+        #agromap {
+            height: 600px;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .leaflet-container {
+            border-radius: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            #agromap {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-[#f8faf7] text-slate-800 font-sans overflow-x-hidden">
+
+    <!-- Navigation Menu Container -->
+    <div id="nav-menu-container"></div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Page Title -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-extrabold text-slate-900 mb-2">AgroGIS Dashboard</h1>
+            <p class="text-slate-600">Integrácia všetkých nových komponentov</p>
+        </div>
+
+        <!-- Three Column Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <!-- LEFT SIDEBAR: Search & Map Layers -->
+            <aside class="lg:col-span-1 space-y-4 order-2 lg:order-1">
+                <!-- Search Module -->
+                <div id="search-module-container"></div>
+
+                <!-- Map Layers Controller -->
+                <div id="map-layers-container"></div>
+            </aside>
+
+            <!-- CENTER: Map -->
+            <div class="lg:col-span-2 order-1 lg:order-2">
+                <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-sky-50">
+                        <h2 class="text-lg font-bold text-slate-900">🗺️ Interaktívna Mapa</h2>
+                    </div>
+                    <div id="agromap"></div>
+                    <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
+                        Kliky na mapu pre identifikáciu vrstiev a parcel
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT SIDEBAR: Dashboard -->
+            <aside class="lg:col-span-1 order-3">
+                <div id="dashboard-container"></div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 space-y-2 z-50 pointer-events-none"></div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Application Scripts - ES6 Modules -->
+    <script type="module">
+        // Import Store & Event Bus
+        import { store } from './js/core/state-store.js';
+        import { globalBus, showNotificationToast } from './js/components/event-bus.js';
+        
+        // Import Components
+        import { NavigationMenu } from './js/components/navigation-menu.js';
+        import { SearchModule } from './js/components/search-module.js';
+        import { MapLayerController } from './js/components/map-layers.js';
+        import { Dashboard } from './js/components/dashboard.js';
+        import { AgroMapEngine } from './js/components/map-engine.js';
+
+        console.log('🚀 AGROGIS Components Loading...');
+
+        // =====================================================
+        // 1. Initialize Map Engine
+        // =====================================================
+        let mapEngine;
+        try {
+            mapEngine = new AgroMapEngine('agromap', null, false);
+            console.log('✅ Map Engine initialized');
+        } catch (error) {
+            console.error('❌ Map Engine error:', error);
+            showNotificationToast('Chyba pri inicializácii mapy', 'danger');
+        }
+
+        // =====================================================
+        // 2. Initialize Navigation Menu
+        // =====================================================
+        const navMenu = new NavigationMenu('nav-menu-container');
+        console.log('✅ Navigation Menu initialized');
+
+        // Listen to navigation changes
+        globalBus.on('navigation:changed', (data) => {
+            console.log('📍 Navigation changed:', data);
+            showNotificationToast(`Navigácia: ${data.href}`, 'info');
+        });
+
+        // =====================================================
+        // 3. Initialize Search Module
+        // =====================================================
+        const searchModule = new SearchModule('search-module-container');
+        console.log('✅ Search Module initialized');
+
+        // Listen to search results
+        globalBus.on('search:performed', (data) => {
+            console.log('🔍 Search performed:', data);
+            
+            // Zoom to result location
+            if (data.data && data.data.center) {
+                mapEngine.map.setView(data.data.center, 13);
+                showNotificationToast(`Nájdený výsledok v ${data.data.center}`, 'success');
+            }
+        });
+
+        // =====================================================
+        // 4. Initialize Map Layer Controller
+        // =====================================================
+        let layerController;
+        if (mapEngine && mapEngine.map) {
+            layerController = new MapLayerController(mapEngine, 'map-layers-container');
+            console.log('✅ Map Layer Controller initialized');
+
+            // Listen to layer changes
+            globalBus.on('map:layer-changed', (data) => {
+                console.log('🎨 Layer changed:', data);
+            });
+
+            globalBus.on('map:exported', (data) => {
+                console.log('📤 Map exported:', data.format);
+            });
+
+            globalBus.on('map:merge-layers', (data) => {
+                console.log('🔗 Merging layers:', data.layers);
+            });
+
+            globalBus.on('map:layers-reset', () => {
+                console.log('🔄 Layers reset');
+            });
+        }
+
+        // =====================================================================
+        // 5. Initialize Dashboard
+        // =====================================================================
+        const dashboard = new Dashboard('dashboard-container');
+        console.log('✅ Dashboard initialized');
+
+        // Listen to dashboard actions
+        globalBus.on('dashboard:action', (data) => {
+            console.log('⚡ Dashboard action:', data.action);
+            handleDashboardAction(data.action);
+        });
+
+        // =====================================================================
+        // 6. Simulate User Login & Update Components
+        // =====================================================================
+        setTimeout(() => {
+            // Simulate logged-in user
+            const mockUser = {
+                id: 'user_123',
+                name: 'Ján Horváth',
+                email: 'jan.horvath@agrogis.sk',
+                persona: 'AGRO_PRO'
+            };
+
+            // Update store
+            store._state.currentUser = mockUser;
+            store._state.currentPersona = 'AGRO_PRO';
+
+            // Update navigation
+            navMenu.setCurrentUser(mockUser);
+
+            // Trigger store update
+            store._notifySubscribers();
+
+            showNotificationToast(`Vitajte, ${mockUser.name}! 👋`, 'success');
+            console.log('✅ User logged in:', mockUser.name);
+        }, 1000);
+
+        // =====================================================================
+        // 7. Dashboard Action Handler
+        // =====================================================================
+        function handleDashboardAction(action) {
+            switch(action) {
+                case 'new-parcel':
+                    showNotificationToast('Otváram formulár novej parcely', 'success');
+                    break;
+                case 'import-geojson':
+                    showNotificationToast('Otváram import GeoJSON', 'success');
+                    break;
+                case 'detect-collision':
+                    showNotificationToast('Spúšťam detekciu kolízií...', 'success');
+                    setTimeout(() => {
+                        dashboard.addActivity({
+                            type: 'collision-detected',
+                            title: 'Detekcia kolízií dokončená',
+                            description: 'Nájdené 2 kolízie v 3 km pásme',
+                            icon: '⚠️'
+                        });
+                        showNotificationToast('Kolízie nájdené! Pozri dashboard.', 'warning');
+                    }, 2000);
+                    break;
+                case 'export-data':
+                    showNotificationToast('Exportujem dáta...', 'success');
+                    dashboard.addActivity({
+                        type: 'export-completed',
+                        title: 'Dáta exportované',
+                        description: 'CSV formát',
+                        icon: '📤'
+                    });
+                    break;
+                case 'report-spray':
+                    showNotificationToast('Otváram formulár hlásenia spreje', 'success');
+                    break;
+                default:
+                    showNotificationToast(`Akcia: ${action}`, 'info');
+            }
+        }
+
+        // =====================================================================
+        // 8. Global Event Listener for Logout
+        // =====================================================================
+        globalBus.on('auth:logout', () => {
+            console.log('🔓 User logged out');
+            // Clear all component data
+            navMenu.destroy();
+            searchModule.destroy();
+            layerController?.destroy();
+            dashboard.destroy();
+        });
+
+        // =====================================================================
+        // 9. Console Commands for Testing
+        // =====================================================================
+        window.AGROGIS = {
+            navMenu,
+            searchModule,
+            mapEngine,
+            layerController,
+            dashboard,
+            store,
+            globalBus,
+            showNotificationToast,
+            
+            // Test methods
+            testSearch() {
+                searchModule.searchInput.value = '00190225';
+                searchModule.performSearch();
+            },
+            
+            testWeather() {
+                dashboard.updateWeatherWidget({
+                    temp: 18,
+                    condition: 'Slnečno',
+                    humidity: 45,
+                    windSpeed: 12,
+                    icon: '☀️'
+                });
+            },
+            
+            testActivity() {
+                dashboard.addActivity({
+                    type: 'parcel-added',
+                    title: 'Nová parcela z testu',
+                    description: 'LPIS-Test-2026',
+                    icon: '✅'
+                });
+            },
+            
+            testNotification(message = 'Test notifikácia', type = 'success') {
+                showNotificationToast(message, type);
+            }
+        };
+
+        console.log('🎉 AGROGIS All Components Ready!');
+        console.log('💡 Tip: Testujte cez window.AGROGIS.testSearch(), testWeather(), atď.');
+    </script>
+</body>
+</html>
