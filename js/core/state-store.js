@@ -3,7 +3,7 @@
  * @description Centralizovaný reaktívny State Store pre AGROGIS SLOVENSKO (ZBGIS, Kataster, LPIS, CEVZ, Účty).
  */
 
-const INITIAL_HIVES = [
+const LEGACY_DEMO_HIVES = [
     { id: 101, name: 'Včelnica Kráľová pri Senci (Múzeum)', count: 48, email: 'kralova@vcelari-senec.sk', cevz: 'CEVZ-BA-0142', lat: 48.1905, lng: 17.4285 },
     { id: 102, name: 'Stanovište Nové Sady - Šabata', count: 35, email: 'vcelar.novesady@agromail.sk', cevz: 'CEVZ-NR-0881', lat: 48.4182, lng: 17.9912 },
     { id: 103, name: 'Včelárska farma Dolná Krupá', count: 62, email: 'medovina@dolnakrupa.sk', cevz: 'CEVZ-TT-0319', lat: 48.4845, lng: 17.5512 },
@@ -13,7 +13,7 @@ const INITIAL_HIVES = [
     { id: 107, name: 'Včelnica Podpoľanie - Detva', count: 29, email: 'detva@horskevcelarstvo.sk', cevz: 'CEVZ-ZV-0512', lat: 48.5610, lng: 19.4185 }
 ];
 
-const INITIAL_ENTITIES = [
+const LEGACY_DEMO_ENTITIES = [
     { ico: '00190225', name: 'PD Devio Nové Sady', type: 'Poľnohospodárske družstvo', address: 'Nové Sady 186, 951 24 Nové Sady', city: 'Nové Sady', lat: 48.4126, lng: 17.9839 },
     { ico: '31322832', name: 'Poľnohospodárske družstvo Senec', type: 'Poľnohospodárske družstvo', address: 'Bratislavská 12, 903 01 Senec', city: 'Senec', lat: 48.2194, lng: 17.3997 },
     { ico: '00189456', name: 'AGROFARMA Dolná Krupá, a.s.', type: 'Akciová spoločnosť', address: 'Hlavná 45, 919 65 Dolná Krupá', city: 'Dolná Krupá', lat: 48.4819, lng: 17.5468 },
@@ -24,7 +24,7 @@ const INITIAL_ENTITIES = [
     { ico: '35763469', name: 'Slovenský poľnohospodársky podnik Nitra, a.s.', type: 'Akciová spoločnosť', address: 'Akademická 4, 949 01 Nitra', city: 'Nitra', lat: 48.3069, lng: 18.0965 }
 ];
 
-const INITIAL_LPIS_PARCELS = [
+const LEGACY_DEMO_LPIS_PARCELS = [
     {
         id: 'LPIS-NR-4401/A',
         ownerIco: '00190225',
@@ -107,7 +107,7 @@ const INITIAL_LPIS_PARCELS = [
     }
 ];
 
-const INITIAL_CADASTRE_PARCELS = [
+const LEGACY_DEMO_CADASTRE_PARCELS = [
     {
         register: 'C',
         parcelNumber: '1204/1',
@@ -202,7 +202,7 @@ const INITIAL_CADASTRE_PARCELS = [
     }
 ];
 
-const INITIAL_SPRAY_ALERTS = [
+const LEGACY_DEMO_SPRAY_ALERTS = [
     {
         id: 5001,
         timestamp: '05. 11. 2026, 08:15',
@@ -251,17 +251,28 @@ class ApplicationStateStore {
             isLpisLayerVisible: true,
             isHivesLayerVisible: true,
             isHiveRadiiVisible: false,
-            isKatasterVisible: false,
+            isKatasterVisible: true,
             isDmrVisible: false,
             lpisOpacity: 0.35,
             networkStatus: navigator.onLine ? 'ONLINE' : 'OFFLINE',
             dbMode: 'HYBRID_LOCAL',
             loading: false,
-            hives: savedHives ? JSON.parse(savedHives) : INITIAL_HIVES,
-            entities: savedEntities ? JSON.parse(savedEntities) : INITIAL_ENTITIES,
-            lpisParcels: savedParcels ? JSON.parse(savedParcels) : INITIAL_LPIS_PARCELS,
-            cadastreParcels: INITIAL_CADASTRE_PARCELS,
-            sprayAlerts: savedAlerts ? JSON.parse(savedAlerts) : INITIAL_SPRAY_ALERTS
+            hives: savedHives
+                ? JSON.parse(savedHives).filter(hive => !LEGACY_DEMO_HIVES.some(sample => sample.id === hive.id && sample.name === hive.name))
+                : [],
+            entities: savedEntities
+                ? JSON.parse(savedEntities).filter(entity => !LEGACY_DEMO_ENTITIES.some(sample => sample.ico === entity.ico && sample.name === entity.name))
+                : [],
+            lpisParcels: savedParcels
+                ? JSON.parse(savedParcels).filter(parcel =>
+                    !LEGACY_DEMO_LPIS_PARCELS.some(sample => sample.id === parcel.id) &&
+                    !String(parcel.id).startsWith('LPIS-SR-')
+                )
+                : [],
+            cadastreParcels: [],
+            sprayAlerts: savedAlerts
+                ? JSON.parse(savedAlerts).filter(alert => !LEGACY_DEMO_SPRAY_ALERTS.some(sample => sample.id === alert.id))
+                : []
         };
 
         this._listeners = new Set();

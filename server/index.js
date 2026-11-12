@@ -103,7 +103,6 @@ async function fetchRegisterUz(ico) {
       type: detail.pravnaForma ? `Právna forma: ${detail.pravnaForma}` : 'Registrovaný subjekt SR (RÚZ)',
       address: [street, [postalCode, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
       city,
-      status: 'active',
       source: 'RegisterUZ.sk (MF SR)'
     };
   } finally {
@@ -216,7 +215,6 @@ app.post('/api/registry/verify-entity', async (req, res, next) => {
       city: cached.rows[0].city,
       lat: cached.rows[0].lat,
       lng: cached.rows[0].lng,
-      status: 'active',
       source: cached.rows[0].source
     } : await fetchRegisterUz(ico);
 

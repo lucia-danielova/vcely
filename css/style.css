@@ -19,77 +19,139 @@ html, body {
     background: radial-gradient(circle at center, #eef2ec 0%, #dde4da 100%);
 }
 
-/* ============================================================================
- * 1. ÚVODNÁ ROZDELENÁ OBRAZOVKA 50 / 50 (VČELÁRI vs. POĽNOHOSPODÁRI)
- * ============================================================================ */
-
-/* Ľavá polovica: Svet včelárov (Slnečný medový prechod + jemný hexagónový rastr) */
-.split-half-beekeepers {
-    background-color: #fef3c7;
+.landing-screen {
+    background-color: #eef3eb;
     background-image:
-        radial-gradient(at 15% 20%, rgba(251, 191, 36, 0.42) 0px, transparent 55%),
-        radial-gradient(at 85% 85%, rgba(245, 158, 11, 0.32) 0px, transparent 50%),
-        radial-gradient(rgba(180, 83, 9, 0.12) 1.5px, transparent 1.5px);
-    background-size: 100% 100%, 100% 100%, 26px 26px;
-    transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+        radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.95), transparent 58%),
+        linear-gradient(135deg, #f3f6eb 0%, #e8f1eb 58%, #f8f2df 100%);
 }
 
-/* Pravá polovica: Svet poľnohospodárov (Svieži smaragdovo-lúčny prechod + rastr) */
-.split-half-farmers {
-    background-color: #ecfdf5;
-    background-image:
-        radial-gradient(at 85% 20%, rgba(16, 185, 129, 0.32) 0px, transparent 55%),
-        radial-gradient(at 15% 85%, rgba(5, 150, 105, 0.25) 0px, transparent 50%),
-        radial-gradient(rgba(4, 120, 87, 0.12) 1.5px, transparent 1.5px);
-    background-size: 100% 100%, 100% 100%, 26px 26px;
-    transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+.landing-header {
+    background: rgba(255, 255, 255, 0.82);
+    border-bottom: 1px solid rgba(148, 163, 149, 0.25);
+    backdrop-filter: blur(12px);
 }
 
-/* Interaktívne karty 4 hlavných režimov (Profi/Hobby Včelár, Profi/Hobby Poľnohospodár) */
-.persona-card {
-    position: relative;
-    overflow: hidden;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease, border-color 0.28s ease;
+.landing-choice-card {
+    min-height: 290px;
+    border: 1px solid #d6ddd4;
+    border-top-width: 4px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 12px 30px rgba(31, 48, 36, 0.07);
+    transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
-.persona-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 70%);
-    transform: translateX(-100%);
-    transition: transform 0.6s ease;
-    pointer-events: none;
+.landing-choice-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 34px rgba(31, 48, 36, 0.12);
 }
 
-.persona-card:hover::after {
-    transform: translateX(100%);
+.landing-bee-choice {
+    border-top-color: #d97706;
 }
 
-.persona-card:hover {
-    transform: translateY(-5px) scale(1.012);
+.landing-grow-choice {
+    border-top-color: #16835d;
 }
 
-.persona-card:active {
-    transform: translateY(-1px) scale(0.995);
+.landing-choice-icon {
+    display: grid;
+    width: 3.5rem;
+    height: 3.5rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 8px;
+    font-size: 1.8rem;
 }
 
-.persona-card-bee-pro:hover {
-    box-shadow: 0 22px 40px -12px rgba(217, 119, 6, 0.35), 0 8px 18px -6px rgba(245, 158, 11, 0.22);
+.landing-bee-icon {
+    background: #fff1c2;
 }
 
-.persona-card-bee-hobby:hover {
-    box-shadow: 0 20px 35px -12px rgba(234, 179, 8, 0.32);
+.landing-grow-icon {
+    background: #dcefe1;
 }
 
-.persona-card-agro-pro:hover {
-    box-shadow: 0 22px 40px -12px rgba(5, 150, 105, 0.35), 0 8px 18px -6px rgba(16, 185, 129, 0.22);
+.landing-primary-button,
+.landing-account-button,
+.landing-register-button {
+    min-height: 44px;
+    border-radius: 6px;
+    padding: 0.65rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
 }
 
-.persona-card-agro-hobby:hover {
-    box-shadow: 0 20px 35px -12px rgba(101, 163, 13, 0.32);
+.landing-primary-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+}
+
+.landing-bee-button {
+    background: #a64b08;
+}
+
+.landing-bee-button:hover {
+    background: #843a05;
+}
+
+.landing-grow-button,
+.landing-register-button {
+    background: #08734f;
+    color: #fff;
+}
+
+.landing-grow-button:hover,
+.landing-register-button:hover {
+    background: #075d40;
+}
+
+.landing-account-button {
+    border: 1px solid #cbd5cf;
+    background: #fff;
+    color: #25352d;
+}
+
+.landing-account-button:hover {
+    background: #f2f6f2;
+}
+
+.landing-pro-link,
+.landing-map-link {
+    min-height: 40px;
+    color: #46564b;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.landing-pro-link {
+    align-self: flex-start;
+    margin-top: 0.5rem;
+}
+
+.landing-pro-link:hover,
+.landing-map-link:hover {
+    color: #075d40;
+}
+
+.landing-screen button:focus-visible {
+    outline: 3px solid #0f766e;
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-choice-card,
+    .landing-primary-button,
+    .landing-account-button,
+    .landing-register-button {
+        transition: none;
+    }
 }
 
 /* Plynulá animácia skrytia úvodnej 50/50 obrazovky */

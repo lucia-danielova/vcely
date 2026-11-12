@@ -576,13 +576,13 @@ async function handleEntityVerification() {
       <div><span class="font-bold text-slate-800">Názov:</span> ${escapeHtml(match.name)}</div>
       <div><span class="font-bold text-slate-800">IČO:</span> <span class="font-mono text-slate-800">${escapeHtml(match.ico)}</span></div>
       <div><span class="font-bold text-slate-800">Sídlo:</span> ${escapeHtml(match.address)}</div>
-      <div>RegisterUZ: <span class="text-emerald-700 font-bold">Aktívny</span></div>
-      <div>LPIS bloky: <span class="text-emerald-700 font-bold">${ownedParcels.length} záznamov</span></div>
-      <div>Stav: <span class="text-emerald-700 font-bold">Pripravené na mapu</span></div>
+      <div>Zdroj: <span class="text-emerald-700 font-bold">${escapeHtml(match.source || 'RegisterUZ')}</span></div>
+      <div>Pozemky uložené v aplikácii: <span class="text-emerald-700 font-bold">${ownedParcels.length}</span></div>
+      <div>Umiestnenie značky: <span class="text-slate-700">sídlo subjektu, nie jeho polia</span></div>
     </div>
   `;
 
-  showToast(`Subjekt ${match.name} bol lokalizovaný na mape`, 'success');
+  showToast(`Sídlo subjektu ${match.name} je zobrazené na mape`, 'success');
 }
 
 function selectCadastreRegister(register) {

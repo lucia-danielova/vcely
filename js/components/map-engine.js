@@ -128,6 +128,11 @@ export class AgroMapEngine {
             maxZoom: 19
         });
 
+        if (store.getState().isKatasterVisible) {
+            this.katasterWmsLayer.addTo(this.map);
+            this.map.setZoom(15);
+        }
+
         // 3. Pridanie vektorových vrstiev do mapy
         this.lpisVectorLayer.addTo(this.map);
         this.cadastreParcelLayer.addTo(this.map);
@@ -369,7 +374,7 @@ export class AgroMapEngine {
             .openOn(this.map);
 
         this.updateSidebarAnalysisPanel(
-            'LPIS Pôdny blok',
+            'Pozemok zakreslený v aplikácii',
             'bg-emerald-100 text-emerald-900 border border-emerald-300',
             `
                 <div class="font-extrabold text-slate-900">${parcel.id} — ${parcel.ownerName}</div>
@@ -472,13 +477,13 @@ export class AgroMapEngine {
         marker.bindPopup(`
             <div class="p-2.5 space-y-2 min-w-[255px]">
                 <div class="flex items-center justify-between border-b border-stone-200 pb-1">
-                    <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full">✓ RegisterUZ.sk + LPIS</span>
+                    <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full">Záznam subjektu</span>
                     <span class="font-mono text-xs text-slate-700 font-bold">IČO: ${ico}</span>
                 </div>
                 <div class="font-extrabold text-sm text-slate-900">🏢 ${name}</div>
                 <div class="text-xs text-slate-700">📍 Sídlo: ${address}</div>
                 <div class="text-[10px] font-mono text-sky-700 font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
-                <div class="text-[11px] text-slate-600">Evidované LPIS bloky: <b class="text-emerald-700">${ownedParcels.length} (${totalHa} ha)</b></div>
+                <div class="text-[11px] text-slate-600">Pozemky uložené v aplikácii: <b class="text-emerald-700">${ownedParcels.length} (${totalHa} ha)</b></div>
                 <button onclick="window.runSprayCheckOnCoords(${lat}, ${lng}, '${safeName}')" class="w-full mt-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] py-2 px-2 rounded-xl transition">
                     ⚠️ Overiť 3 km ochranné pásmo včiel
                 </button>
@@ -497,7 +502,7 @@ export class AgroMapEngine {
                 <div class="text-xs text-slate-700">IČO: <span class="font-mono text-emerald-700 font-bold">${ico}</span></div>
                 <div class="text-xs text-slate-600">Sídlo: ${address}</div>
                 <div class="text-[10px] font-mono text-sky-700 font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
-                <div class="text-xs text-slate-700 pt-1">LPIS pôdne bloky: <b class="text-emerald-700">${ownedParcels.length} blokov (${totalHa} ha)</b></div>
+                <div class="text-xs text-slate-700 pt-1">Pozemky uložené v aplikácii: <b class="text-emerald-700">${ownedParcels.length} (${totalHa} ha)</b></div>
                 <button onclick="window.runSprayCheckOnCoords(${lat}, ${lng}, '${safeName}')" class="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] py-2 px-3 rounded-xl transition">
                     ⚠️ Spustiť kontrolu postreku v okolí farmy
                 </button>
@@ -749,11 +754,11 @@ export class AgroMapEngine {
                     'Meranie plochy',
                     'bg-emerald-100 text-emerald-900 border border-emerald-300',
                     `
-                        <div class="font-extrabold text-slate-900 text-xs">📐 Rozpracované pole (${this.drawPolygonPoints.length} lomových bodov)</div>
+                        <div class="font-extrabold text-slate-900 text-xs">📐 Váš zákres (${this.drawPolygonPoints.length} lomových bodov)</div>
                         <div class="text-xs text-emerald-700 font-bold">Výmera: ${geom.areaHa} ha (${geom.areaSqM.toLocaleString('sk-SK')} m²)</div>
                         <div class="text-[11px] text-slate-600">Obvod parcely: <b>${geom.perimeterM} m</b></div>
                         <button onclick="window.finishPolygonDrawing()" class="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-xl shadow-sm transition">
-                            💾 Uložiť parcelu do LPIS vrstvy
+                            💾 Uložiť zákres v aplikácii
                         </button>
                     `
                 );
@@ -778,7 +783,7 @@ export class AgroMapEngine {
         const activeEntity = state.activeEntity;
 
         const newParcel = {
-            id: `LPIS-CAD-${Math.floor(1000 + Math.random() * 9000)}`,
+            id: `MAP-${Date.now()}`,
             ownerIco: user?.ico || activeEntity?.ico || 'VLASTNÁ',
             ownerName: user?.name || activeEntity?.name || 'Zameraná parcela / Sad',
             ownerEmail: user?.email || '',
@@ -796,7 +801,7 @@ export class AgroMapEngine {
         this.renderLpisParcels(user?.ico || activeEntity?.ico || null);
         store.setState({ interactionMode: 'NONE' });
 
-        showNotificationToast(`✅ Nový pôdny blok ${newParcel.id} (${newParcel.areaHa} ha) bol uložený do LPIS!`, 'success');
+        showNotificationToast(`✅ Zákres ${newParcel.id} (${newParcel.areaHa} ha) bol uložený v aplikácii.`, 'success');
         return newParcel;
     }
 

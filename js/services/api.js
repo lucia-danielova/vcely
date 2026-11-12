@@ -220,97 +220,11 @@ export class AgroApiService {
                     };
                 }
             }
-        } catch (liveErr) {
-            // Pri zlyhaní CORS na štátnom serveri pokračujeme geodetickou rekonštrukciou v danom k. ú.
+        } catch {
+            return null;
         }
 
-        // D. Geodetický výpočet parcely v danom katastrálnom území
-        const parts = cleanParcel.split('/');
-        const kmenove = parseInt(parts[0].replace(/\D/g, ''), 10) || 100;
-        const poddelenie = parts[1] ? (parseInt(parts[1].replace(/\D/g, ''), 10) || 1) : 1;
-
-        const angleRad = ((kmenove * 137.5) % 360) * (Math.PI / 180);
-        const radiusDeg = 0.0025 + ((kmenove % 15) * 0.00045) + (poddelenie * 0.00018);
-
-        const centerLat = kuMeta.lat + Math.sin(angleRad) * radiusDeg * 0.75;
-        const centerLng = kuMeta.lng + Math.cos(angleRad) * radiusDeg;
-
-        const halfLat = cleanReg === 'C' ? 0.00115 : 0.00165;
-        const halfLng = cleanReg === 'C' ? 0.00185 : 0.00095;
-        const skew = ((poddelenie % 5) - 2) * 0.0002;
-
-        const coords = [
-            [centerLat + halfLat, centerLng - halfLng + skew],
-            [centerLat + halfLat * 0.92, centerLng + halfLng + skew],
-            [centerLat - halfLat, centerLng + halfLng - skew],
-            [centerLat - halfLat * 0.92, centerLng - halfLng - skew]
-        ];
-
-        const polyLatLngs = coords.map(c => ({ lat: c[0], lng: c[1] }));
-        const geomStats = AgroApiService.calculatePolygonGeometry(polyLatLngs);
-        const lvNumber = String(100 + ((kmenove * 7 + poddelenie * 13) % 3800));
-
-        const druhyC = ['Orná pôda', 'Trvalý trávny porast', 'Ovocný sad', 'Vinica'];
-        const druhPozemku = cleanReg === 'C'
-            ? druhyC[(kmenove + poddelenie) % druhyC.length]
-            : 'Orná pôda (Určený operát E-KN)';
-
-        return {
-            register: cleanReg,
-            parcelNumber: cleanParcel,
-            kuName: kuMeta.name,
-            kuCode: kuMeta.code,
-            obec: kuMeta.obec,
-            okres: kuMeta.okres,
-            lvNumber,
-            druhPozemku,
-            vyuzitie: cleanReg === 'C' ? 'Poľnohospodársky využívaná pôda (C-KN)' : 'Pozemok evidovaný v registri E-KN',
-            umiestnenie: 'Extravilán obce',
-            vlastnik: `Vlastníci podľa LV č. ${lvNumber}`,
-            areaSqM: geomStats.areaSqM,
-            areaHa: geomStats.areaHa,
-            source: `ÚGKK SR Kataster — k. ú. ${kuMeta.name} (${kuMeta.code})`,
-            center: [centerLat, centerLng],
-            coords
-        };
-    }
-
-    /**
-     * 3. SYNCHRONIZÁCIA S VEREJNÝMI REGISTRAMI PRI ŠTARTE ALEBO KLIKNUTÍ
-     */
-    async syncPublicRegistersForEntity(entityData) {
-        if (!entityData || !entityData.ico) return [];
-        const existingParcels = store.getState().lpisParcels || [];
-        const owned = existingParcels.filter(p => p.ownerIco === entityData.ico);
-
-        if (owned.length > 0) return owned;
-
-        // Ak sme cez RegisterUZ našli nové družstvo, ktoré ešte nemá v lokálnej mape zakreslený LPIS blok,
-        // vygenerujeme preň referenčný pôdny blok LPIS v katastri jeho sídla
-        const baseLat = entityData.lat || 48.3061;
-        const baseLng = entityData.lng || 18.0764;
-        const coords = [
-            [baseLat + 0.0045, baseLng - 0.0065],
-            [baseLat + 0.0048, baseLng + 0.0065],
-            [baseLat - 0.0042, baseLng + 0.0062],
-            [baseLat - 0.0045, baseLng - 0.0062]
-        ];
-        const geom = AgroApiService.calculatePolygonGeometry(coords.map(c => ({ lat: c[0], lng: c[1] })));
-
-        const autoLpis = {
-            id: `LPIS-SR-${entityData.ico.slice(-4)}/A`,
-            ownerIco: entityData.ico,
-            ownerName: entityData.name,
-            kUzemie: entityData.city || 'Slovensko',
-            crop: 'Ozimná repka / Pšenica (LPIS OpenData)',
-            areaHa: geom.areaHa,
-            kultura: 'Orná pôda (OP)',
-            center: [baseLat, baseLng],
-            coords
-        };
-
-        store.addLpisParcel(autoLpis);
-        return [autoLpis];
+        return null;
     }
 
     /**

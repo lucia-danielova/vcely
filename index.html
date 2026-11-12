@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGROGIS SLOVENSKO — Národný ekologický geoportál pre včelárov a poľnohospodárov</title>
+    <title>AgroGIS Slovensko | Mapa pre včelárov a pestovateľov</title>
     
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="./assets/agrogis-192.png">
@@ -45,177 +45,68 @@
     <!-- ==================================================================== -->
     <!-- ÚVODNÁ ROZDELENÁ OBRAZOVKA 50 / 50 (VČELÁRI vs. POĽNOHOSPODÁRI)       -->
     <!-- ==================================================================== -->
-    <div id="landing-portal-overlay" class="fixed inset-0 z-50 flex flex-col lg:flex-row bg-stone-100 overflow-y-auto lg:overflow-hidden transition-all duration-500">
-        
-        <!-- Horná plávajúca lišta na úvodnej obrazovke -->
-        <div class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 md:px-8 py-4 pointer-events-none">
-            <div class="flex items-center space-x-3 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-stone-200/90 pointer-events-auto">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-lg font-extrabold shadow-sm">
-                    🌿
-                </div>
-                <div>
-                    <div class="font-extrabold text-sm md:text-base text-slate-900 tracking-tight leading-none">
-                        AGROGIS <span class="text-emerald-600">SLOVENSKO</span>
-                    </div>
-                    <div class="text-[10px] text-slate-500 font-semibold mt-0.5">Národný systém ochrany opeľovačov & LPIS geoportál</div>
-                </div>
+    <div id="landing-portal-overlay" class="landing-screen fixed inset-0 z-50 flex flex-col overflow-y-auto transition-all duration-500">
+        <header class="landing-header flex items-center justify-between gap-4 px-5 py-4 sm:px-8">
+            <div class="flex items-center gap-3" aria-label="AgroGIS Slovensko">
+                <img src="./assets/agrogis-icon.svg" alt="" class="h-10 w-10">
+                <span>
+                    <span class="block text-sm font-extrabold text-slate-900">AGROGIS <span class="text-emerald-700">SLOVENSKO</span></span>
+                    <span class="block text-xs text-slate-600">Mapa pre včelárov a pestovateľov</span>
+                </span>
+            </div>
+            <nav class="flex items-center gap-2" aria-label="Účet">
+                <button onclick="openAuthModal('login')" class="landing-account-button">Prihlásiť sa</button>
+                <button onclick="openAuthModal('register')" class="landing-register-button">Vytvoriť účet</button>
+            </nav>
+        </header>
+
+        <main class="landing-content mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-5 py-10 sm:px-8 sm:py-12">
+            <div class="mx-auto mb-9 max-w-2xl text-center">
+                <p class="mb-3 text-sm font-bold text-emerald-800">Vitajte na AgroGIS Slovensko</p>
+                <h1 class="text-3xl font-extrabold leading-tight text-slate-950 sm:text-5xl">Čo vás zaujíma?</h1>
+                <p class="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-700 sm:text-lg">
+                    Vyberte si, čo robíte. Ukážeme vám mapu a informácie, ktoré sa vám zídu.
+                </p>
             </div>
 
-            <div class="flex items-center space-x-2 pointer-events-auto">
-                <button onclick="openAuthModal('login')" class="bg-white/95 hover:bg-white text-slate-800 border border-stone-300 font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5">
-                    <span>🔑</span>
-                    <span>Prihlásiť sa</span>
-                </button>
-                <button onclick="openAuthModal('register')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5">
-                    <span>✨</span>
-                    <span>Registrácia</span>
-                </button>
-                <button onclick="closeLandingPortal()" title="Prejsť rovno na interaktívnu mapu" class="bg-slate-900/90 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition">
-                    Otvoriť mapu ✕
-                </button>
-            </div>
-        </div>
-
-        <!-- Stredový spájací emblém (viditeľný na veľkých obrazovkách) -->
-        <div class="hidden lg:flex fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-16 h-16 rounded-2xl bg-white shadow-2xl border-2 border-stone-200 items-center justify-center flex-col pointer-events-none">
-            <span class="text-lg leading-none">🐝🤝🚜</span>
-            <span class="text-[8px] font-extrabold uppercase tracking-widest text-slate-500 mt-0.5">3 KM</span>
-        </div>
-
-        <!-- ================================================================ -->
-        <!-- ĽAVÁ POLOVICA: SVET VČELÁROV (PROFI VČELÁRI & HOBBY VČELÁRI)      -->
-        <!-- ================================================================ -->
-        <section class="w-full lg:w-1/2 min-h-[50vh] lg:h-full split-half-beekeepers relative flex flex-col justify-center items-center p-6 sm:p-10 lg:p-14 border-b lg:border-b-0 lg:border-r border-amber-300/80">
-            <div class="max-w-xl w-full space-y-6 z-10 mt-16 lg:mt-0">
-                
-                <!-- Hlavička sekcie včelárov -->
-                <div class="space-y-2.5 text-center lg:text-left">
-                    <div class="inline-flex items-center space-x-2 bg-amber-500/20 border border-amber-500/40 text-amber-950 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider shadow-sm">
-                        <span>🐝</span>
-                        <span>Ochrana včelstiev • Register CEVZ • 3 km dolet</span>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+                <section class="landing-choice-card landing-bee-choice flex flex-col p-5 sm:p-7">
+                    <div class="mb-5 flex items-center gap-4">
+                        <div class="landing-choice-icon landing-bee-icon" aria-hidden="true">🐝</div>
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-950">Chovám včely</h2>
+                            <p class="mt-1 text-sm text-slate-600">Som včelár alebo mám úle</p>
+                        </div>
                     </div>
-                    <h2 class="text-3xl sm:text-4xl font-extrabold text-amber-950 tracking-tight leading-tight">
-                        Pre včelárov
-                    </h2>
-                    <p class="text-sm text-amber-950/80 leading-relaxed font-medium">
-                        Chráňte svoje včelie rodiny pred neohlásenými chemickými postrekmi. Vyznačte si včelnice alebo kočovné vozy v mape a získajte okamžitý prehľad o rizikách v okruhu 3 km.
+                    <p class="mb-6 flex-1 text-sm leading-relaxed text-slate-700">
+                        Pozrite si, čo sa deje v okolí vašich včiel a kde sa pracuje na poliach.
                     </p>
-                </div>
-
-                <!-- 2 Klikacie tlačidlá (karty) pre Včelárov -->
-                <div class="grid grid-cols-1 gap-4">
-                    
-                    <!-- TLAČIDLO 1: PROFI VČELÁRI -->
-                    <button onclick="selectUserPersona('BEE_PRO')" class="persona-card persona-card-bee-pro group text-left p-5 sm:p-6 rounded-3xl bg-white/95 hover:bg-white border-2 border-amber-400 hover:border-amber-500 shadow-xl transition-all duration-300 flex items-start space-x-4">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center text-3xl shrink-0 shadow-lg group-hover:scale-110 transition-transform">
-                            🐝
-                        </div>
-                        <div class="flex-1 space-y-1.5">
-                            <div class="flex flex-wrap items-center justify-between gap-1">
-                                <span class="text-lg font-extrabold text-slate-900 group-hover:text-amber-700 transition-colors">PROFI VČELÁRI</span>
-                                <span class="text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full uppercase">CEVZ • Kočovanie • S-JTSK</span>
-                            </div>
-                            <p class="text-xs text-slate-600 leading-relaxed">
-                                Pre registrované včelárske farmy a kočujúcich včelárov. Kompletná správa viacerých stanovíšť CEVZ, 3 km doletové pásma, katastrálne mapy C-KN/E-KN a evidencia výstrah.
-                            </p>
-                            <div class="pt-1.5 flex items-center justify-between text-xs font-extrabold text-amber-700">
-                                <span class="group-hover:translate-x-1 transition-transform">Otvoriť profesionálny portál včelára →</span>
-                                <span class="text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Plná verzia</span>
-                            </div>
-                        </div>
+                    <button onclick="selectUserPersona('BEE_HOBBY')" class="landing-primary-button landing-bee-button">
+                        Pokračovať <span aria-hidden="true">→</span>
                     </button>
+                    <button onclick="selectUserPersona('BEE_PRO')" class="landing-pro-link">Som profesionálny včelár</button>
+                </section>
 
-                    <!-- TLAČIDLO 2: HOBBY VČELÁRI -->
-                    <button onclick="selectUserPersona('BEE_HOBBY')" class="persona-card persona-card-bee-hobby group text-left p-5 sm:p-6 rounded-3xl bg-white/95 hover:bg-white border-2 border-amber-200 hover:border-amber-400 shadow-lg transition-all duration-300 flex items-start space-x-4">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center text-3xl shrink-0 shadow-md group-hover:scale-110 transition-transform">
-                            🍯
+                <section class="landing-choice-card landing-grow-choice flex flex-col p-5 sm:p-7">
+                    <div class="mb-5 flex items-center gap-4">
+                        <div class="landing-choice-icon landing-grow-icon" aria-hidden="true">🌱</div>
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-950">Pestujem plodiny</h2>
+                            <p class="mt-1 text-sm text-slate-600">Mám záhradu, sad alebo farmu</p>
                         </div>
-                        <div class="flex-1 space-y-1.5">
-                            <div class="flex flex-wrap items-center justify-between gap-1">
-                                <span class="text-lg font-extrabold text-slate-900 group-hover:text-amber-600 transition-colors">HOBBY VČELÁRI</span>
-                                <span class="text-[10px] font-bold bg-yellow-100 text-amber-900 border border-yellow-300 px-2.5 py-0.5 rounded-full uppercase">Pre laikov a záhrady</span>
-                            </div>
-                            <p class="text-xs text-slate-600 leading-relaxed">
-                                Pre drobnochovateľov a rodinné včelnice. Zjednodušené prostredie bez zložitých geodetických tabuliek – pridajte si svoje úle jedným klikom a sledujte okolie.
-                            </p>
-                            <div class="pt-1.5 flex items-center justify-between text-xs font-extrabold text-amber-600">
-                                <span class="group-hover:translate-x-1 transition-transform">Vstúpiť do jednoduchého režimu včelára →</span>
-                                <span class="text-[10px] bg-yellow-50 px-2 py-0.5 rounded border border-yellow-200">Jednoduché</span>
-                            </div>
-                        </div>
-                    </button>
-
-                </div>
-            </div>
-        </section>
-
-        <!-- ================================================================ -->
-        <!-- PRAVÁ POLOVICA: SVET POĽNOHOSPODÁROV (PROFI & HOBBY)             -->
-        <!-- ================================================================ -->
-        <section class="w-full lg:w-1/2 min-h-[50vh] lg:h-full split-half-farmers relative flex flex-col justify-center items-center p-6 sm:p-10 lg:p-14">
-            <div class="max-w-xl w-full space-y-6 z-10">
-                
-                <!-- Hlavička sekcie poľnohospodárov -->
-                <div class="space-y-2.5 text-center lg:text-left">
-                    <div class="inline-flex items-center space-x-2 bg-emerald-600/15 border border-emerald-600/35 text-emerald-950 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider shadow-sm">
-                        <span>🚜</span>
-                        <span>LPIS Pôdne bloky • Kataster ÚGKK SR • Ochrana rastlín</span>
                     </div>
-                    <h2 class="text-3xl sm:text-4xl font-extrabold text-emerald-950 tracking-tight leading-tight">
-                        Pre poľnohospodárov
-                    </h2>
-                    <p class="text-sm text-emerald-950/80 leading-relaxed font-medium">
-                        Vyhľadajte svoje družstvo podľa IČO, skontrolujte pôdne bloky LPIS a katastrálne parcely C-KN / E-KN, otestujte 3 km pásmo včiel a vytlačte si úradný PDF protokol pre PPA.
+                    <p class="mb-6 flex-1 text-sm leading-relaxed text-slate-700">
+                        Nájdite svoje pozemky na mape a zistite, čo sa nachádza v ich okolí.
                     </p>
-                </div>
-
-                <!-- 2 Klikacie tlačidlá (karty) pre Poľnohospodárov -->
-                <div class="grid grid-cols-1 gap-4">
-                    
-                    <!-- TLAČIDLO 3: PROFI POĽNOHOSPODÁRI -->
-                    <button onclick="selectUserPersona('AGRO_PRO')" class="persona-card persona-card-agro-pro group text-left p-5 sm:p-6 rounded-3xl bg-white/95 hover:bg-white border-2 border-emerald-500 hover:border-emerald-600 shadow-xl transition-all duration-300 flex items-start space-x-4">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center text-3xl shrink-0 shadow-lg group-hover:scale-110 transition-transform">
-                            🚜
-                        </div>
-                        <div class="flex-1 space-y-1.5">
-                            <div class="flex flex-wrap items-center justify-between gap-1">
-                                <span class="text-lg font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">PROFI POĽNOHOSPODÁRI</span>
-                                <span class="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full uppercase">PD • SHR • LPIS • Kataster</span>
-                            </div>
-                            <p class="text-xs text-slate-600 leading-relaxed">
-                                Pre poľnohospodárske družstvá, agropodniky, agronómov a SHR. Overenie IČO cez RegisterUZ, parcely C-KN/E-KN, zákonné hlásenie postrekov (48h) a tlač PDF protokolov.
-                            </p>
-                            <div class="pt-1.5 flex items-center justify-between text-xs font-extrabold text-emerald-700">
-                                <span class="group-hover:translate-x-1 transition-transform">Otvoriť profesionálny agropanel →</span>
-                                <span class="text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Profi GIS</span>
-                            </div>
-                        </div>
+                    <button onclick="selectUserPersona('AGRO_HOBBY')" class="landing-primary-button landing-grow-button">
+                        Pokračovať <span aria-hidden="true">→</span>
                     </button>
-
-                    <!-- TLAČIDLO 4: HOBBY POĽNOHOSPODÁRI -->
-                    <button onclick="selectUserPersona('AGRO_HOBBY')" class="persona-card persona-card-agro-hobby group text-left p-5 sm:p-6 rounded-3xl bg-white/95 hover:bg-white border-2 border-emerald-200 hover:border-emerald-400 shadow-lg transition-all duration-300 flex items-start space-x-4">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-lime-500 to-emerald-600 text-white flex items-center justify-center text-3xl shrink-0 shadow-md group-hover:scale-110 transition-transform">
-                            🌱
-                        </div>
-                        <div class="flex-1 space-y-1.5">
-                            <div class="flex flex-wrap items-center justify-between gap-1">
-                                <span class="text-lg font-extrabold text-slate-900 group-hover:text-emerald-600 transition-colors">HOBBY POĽNOHOSPODÁRI</span>
-                                <span class="text-[10px] font-bold bg-lime-100 text-emerald-900 border border-lime-300 px-2.5 py-0.5 rounded-full uppercase">Sadári & Pestovatelia</span>
-                            </div>
-                            <p class="text-xs text-slate-600 leading-relaxed">
-                                Pre menších pestovateľov, ovocinárov, vinohradníkov a rodinné farmy. Jednoduché zameranie pozemku v hektároch, kontrola vetra a overenie včelstiev v susedstve.
-                            </p>
-                            <div class="pt-1.5 flex items-center justify-between text-xs font-extrabold text-emerald-600">
-                                <span class="group-hover:translate-x-1 transition-transform">Vstúpiť do jednoduchého režimu pestovateľa →</span>
-                                <span class="text-[10px] bg-lime-50 px-2 py-0.5 rounded border border-lime-200">Jednoduché</span>
-                            </div>
-                        </div>
-                    </button>
-
-                </div>
+                    <button onclick="selectUserPersona('AGRO_PRO')" class="landing-pro-link">Som profesionálny pestovateľ</button>
+                </section>
             </div>
-        </section>
 
+            <button onclick="closeLandingPortal()" class="landing-map-link mx-auto mt-7">Chcem si len pozrieť mapu</button>
+        </main>
     </div>
 
     <!-- ==================================================================== -->
@@ -266,7 +157,7 @@
             <!-- Tlačidlo návratu na úvodnú 50/50 obrazovku -->
             <button onclick="openLandingPortal()" class="hidden sm:flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-slate-800 border border-stone-300 text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-sm">
                 <span>🏠</span>
-                <span class="hidden md:inline">Úvod (50/50)</span>
+                <span class="hidden md:inline">Úvod</span>
             </button>
 
             <!-- Tlačidlá pre neprihláseného používateľa -->
@@ -388,24 +279,16 @@
                                 type="text" 
                                 id="ico-input" 
                                 autocomplete="off"
-                                placeholder="Zadajte IČO (napr. 00190225), družstvo alebo obec..." 
+                                placeholder="Zadajte IČO alebo názov subjektu..." 
                                 class="w-full bg-white border border-stone-300 rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                             >
                             <button onclick="clearSearchInput()" title="Vyčistiť" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-xs">✕</button>
                             <div id="search-dropdown" class="absolute left-0 right-0 z-50 bg-white border border-stone-300 rounded-xl shadow-2xl mt-1.5 max-h-64 overflow-y-auto hidden"></div>
                         </div>
 
-                        <div class="flex flex-wrap gap-1.5">
-                            <span class="text-[10px] text-slate-500 font-bold py-0.5">Rýchly test IČO:</span>
-                            <button onclick="quickSelectICO('00190225')" class="eco-chip text-emerald-900 bg-emerald-50 border-emerald-300 hover:bg-emerald-100">00190225 (PD Devio)</button>
-                            <button onclick="quickSelectICO('31322832')" class="eco-chip text-emerald-900 bg-emerald-50 border-emerald-300 hover:bg-emerald-100">31322832 (PD Senec)</button>
-                            <button onclick="quickSelectICO('00189456')" class="eco-chip text-emerald-900 bg-emerald-50 border-emerald-300 hover:bg-emerald-100">00189456 (Agrofarma)</button>
-                            <button onclick="quickSelectICO('36012459')" class="eco-chip text-emerald-900 bg-emerald-50 border-emerald-300 hover:bg-emerald-100">36012459 (Hurbanovo)</button>
-                        </div>
-
                         <button onclick="handleEntityVerification()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2">
                             <span>🔍</span>
-                            <span>Overiť IČO a lokalizovať parcely LPIS</span>
+                            <span>Overiť subjekt a zobraziť sídlo</span>
                         </button>
                     </div>
 
@@ -459,12 +342,6 @@
                             </div>
                         </div>
 
-                        <div class="flex flex-wrap gap-1.5">
-                            <button onclick="quickSearchParcel('C', 'Petržalka', '1204/1')" class="eco-chip text-sky-900 bg-sky-50 border-sky-300 hover:bg-sky-100">C-KN 1204/1 Petržalka</button>
-                            <button onclick="quickSearchParcel('C', 'Nové Sady', '440/2')" class="eco-chip text-sky-900 bg-sky-50 border-sky-300 hover:bg-sky-100">C-KN 440/2 Nové Sady</button>
-                            <button onclick="quickSearchParcel('E', 'Kráľová pri Senci', '812/1')" class="eco-chip text-purple-900 bg-purple-50 border-purple-300 hover:bg-purple-100">E-KN 812/1 Kráľová</button>
-                        </div>
-
                         <button onclick="handleCadastreParcelSearch()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2">
                             <span>📐</span>
                             <span>Vykresliť parcelu z katastra</span>
@@ -474,8 +351,8 @@
                     <!-- 3. Zoznam evidovaných pôdnych blokov LPIS -->
                     <div class="space-y-2">
                         <div class="flex items-center justify-between px-1">
-                            <h3 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">3. Evidované pôdne bloky LPIS</h3>
-                            <span id="lpis-total-badge" class="text-[10px] font-mono font-bold text-emerald-900 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">0 blokov</span>
+                            <h3 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">3. Pozemky zakreslené v aplikácii</h3>
+                            <span id="lpis-total-badge" class="text-[10px] font-mono font-bold text-emerald-900 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">0 záznamov</span>
                         </div>
                         <div id="lpis-parcel-list" class="space-y-1.5 max-h-44 overflow-y-auto pr-1 custom-scrollbar"></div>
                     </div>
@@ -564,7 +441,7 @@
                         <div class="eco-card p-3.5 rounded-2xl space-y-2 border-l-4 border-l-sky-500">
                             <label class="flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center space-x-2.5">
-                                    <input type="checkbox" id="layer-kataster" onchange="toggleKatasterLayer(this.checked)" class="w-4 h-4 accent-sky-600 rounded cursor-pointer">
+                                    <input type="checkbox" id="layer-kataster" checked onchange="toggleKatasterLayer(this.checked)" class="w-4 h-4 accent-sky-600 rounded cursor-pointer">
                                     <div>
                                         <div class="text-xs font-bold text-slate-900">📐 Katastrálna mapa (C-KN / E-KN)</div>
                                         <div class="text-[10px] text-slate-500">Oficiálna WMS vrstva ÚGKK SR (od Zoom 15+)</div>
