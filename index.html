@@ -3,6 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // GitHub Pages SPA fallback: restore the route that 404.html encoded as
+        // "?/<path>&<query>" so deep links keep working (spa-github-pages pattern).
+        (function () {
+            var search = location.search;
+            if (search.charAt(1) === '/') {
+                var decoded = search.slice(2).split('&').map(function (part, index) {
+                    return index === 0 ? part : part.replace(/~and~/g, '&');
+                }).join('?');
+                window.history.replaceState(null, null,
+                    location.pathname.slice(0, -1) + decoded + location.hash
+                );
+            }
+        })();
+    </script>
     <title>AgroGIS Slovensko | Mapa pre včelárov a pestovateľov</title>
     
     <link rel="manifest" href="./manifest.json">

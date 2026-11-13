@@ -17,6 +17,31 @@ const allowedRoles = new Set(['AGRO', 'AGRO_PRO', 'BEEKEEPER', 'BEE_HOBBY', 'BEE
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 
+// CORS: allow the GitHub Pages frontend (and extra origins via CORS_ORIGINS,
+// comma-separated) to call the API cross-origin. Same-origin requests have no
+// Origin header and always pass through.
+const defaultAllowedOrigins = ['https://lucia-danielova.github.io'];
+const allowedOrigins = new Set(
+  [...defaultAllowedOrigins, ...String(process.env.CORS_ORIGINS || '').split(',')]
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean)
+);
+
+app.use('/api', (req, res, next) => {
+  const origin = (req.headers.origin || '').replace(/\/+$/, '');
+  if (origin && allowedOrigins.has(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Max-Age', '86400');
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 function sendError(res, status, error, details) {
   res.status(status).json({ success: false, error, ...(details ? { details } : {}) });
 }

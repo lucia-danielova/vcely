@@ -172,8 +172,29 @@ test('getLpisParcels encodes the LPIS id and returns the parcel list', async () 
     assert.deepEqual(await backendApi.getLpisParcels(), [{ externalRegisterId: 'LPIS-1' }]);
   });
 
-  assert.equal(seenUrls[0], '/api/registry/lpis?lpisId=FARM%207%2F1');
-  assert.equal(seenUrls[1], '/api/registry/lpis');
+  assert.equal(seenUrls[0], 'https://agrogis-app.onrender.com/api/registry/lpis?lpisId=FARM%207%2F1');
+  assert.equal(seenUrls[1], 'https://agrogis-app.onrender.com/api/registry/lpis');
+});
+
+test('API base is same-origin off GitHub Pages and the Render API on Pages', async () => {
+  const loadModule = () => import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}#${Math.random()}`);
+
+  let mod;
+  await withGlobals({
+    location: { protocol: 'https:', origin: 'https://agrogis.example.sk', hostname: 'agrogis.example.sk', search: '' }
+  }, async () => {
+    mod = await loadModule();
+  });
+
+  const urls = [];
+  await withGlobals({
+    location: { protocol: 'https:', origin: 'https://agrogis.example.sk', hostname: 'agrogis.example.sk', search: '' },
+    fetch: async (url) => {
+      urls.push(url);
+      return new Response(JSON.stringify({ parcels: [] }), { headers: { 'content-type': 'application/json' } });
+    }
+  }, () => mod.backendApi.getLpisParcels());
+  assert.equal(urls[0], 'https://agrogis.example.sk/api/registry/lpis');
 });
 
 test('malformed API JSON fails explicitly with the response status', async () => {

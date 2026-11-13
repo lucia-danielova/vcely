@@ -1,5 +1,26 @@
 const TOKEN_KEY = 'agrogis_api_token_v1';
 
+// On same-origin deployments the API lives at /api. On static hosting
+// (GitHub Pages) there is no backend, so cross-origin calls go to the
+// deployed Render API; override with ?api=<url> or localStorage agrogis_api_base.
+const RENDER_API_BASE = 'https://agrogis-app.onrender.com/api';
+
+function getApiBase() {
+  const location = globalThis.location;
+  if (location && /^https?:$/.test(location.protocol)) {
+    const override = new URLSearchParams(location.search).get('api');
+    if (override) return `${override.replace(/\/+$/, '')}/api`;
+    const sameOrigin = `${location.origin}/api`;
+    if (!location.hostname.endsWith('github.io')) return sameOrigin;
+    const storage = getStorage();
+    const stored = storage ? storage.getItem('agrogis_api_base') : null;
+    return stored ? `${stored.replace(/\/+$/, '')}/api` : RENDER_API_BASE;
+  }
+  return RENDER_API_BASE;
+}
+
+const API_BASE = getApiBase();
+
 function getStorage() {
   try {
     return globalThis.localStorage;
@@ -35,7 +56,7 @@ async function request(path, options = {}) {
 
   let response;
   try {
-    response = await fetch(`/api${path}`, { ...options, headers });
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   } catch (error) {
     error.status = 0;
     throw error;
