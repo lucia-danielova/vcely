@@ -384,6 +384,34 @@ app.get('/api/parcels', authenticate, async (req, res, next) => {
   }
 });
 
+// Parcely konkrétneho subjektu podľa IČO (vzor /farmari/:ico/parcely z
+// dokumentu) — FeatureCollection pre priame vykreslenie na mape.
+app.get('/api/parcels/by-ico/:ico', async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  const ico = cleanIco(req.params.ico);
+  if (!icoPattern.test(ico)) return sendError(res, 400, 'VALIDATION_ERROR', 'IČO musí obsahovať 6 až 10 číslic.');
+  try {
+    const result = await pool.query(
+      `SELECT json_build_object(
+         'type', 'FeatureCollection',
+         'features', COALESCE(json_agg(ST_AsGeoJSON(t.*)::json), '[]'::json)
+       ) AS geojson
+       FROM (
+         SELECT p.id, p.external_register_id, p.area_ha, p.crop, u.name AS owner_name, p.geom
+         FROM user_parcels p
+         JOIN app_users u ON u.id = p.user_id
+         WHERE u.ico = $1
+         ORDER BY p.id
+         LIMIT 2000
+       ) AS t`,
+      [ico.padStart(8, '0')]
+    );
+    res.json(result.rows[0].geojson);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.delete('/api/parcels/:id', authenticate, async (req, res, next) => {
   if (!requireDatabase(res)) return;
   try {
@@ -487,14 +515,41 @@ app.get('/api/hives/public', async (req, res, next) => {
   }
 });
 
+const sprayAlertStatuses = new Set(['NAPLANOVANY', 'PREBIEHA', 'DOKONCENY', 'ZRUSENY']);
+
+function parseTimestamp(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
 // Spatial alert engine (plán, krok 5.1): pri hlásení postreku sa cez
 // check_spray_collision_optimized nájdu včelnice v 3 km ochrannom pásme.
+// Evidencia rozšírená podľa dokumentu (evidencia_postrekov): prípravok,
+// účinná látka, dávka, plánované obdobie a stav.
 app.post('/api/spray-alerts', authenticate, async (req, res, next) => {
   if (!requireDatabase(res)) return;
-  const { locationLabel = '', note = '', radiusMeters = 3000 } = req.body || {};
+  const {
+    locationLabel = '', note = '', radiusMeters = 3000,
+    preparationName = '', activeSubstance = '', dosePerHa = null,
+    plannedFrom = null, plannedTo = null
+  } = req.body || {};
   const point = parseLatLng(req.body);
   if (!point) return sendError(res, 400, 'VALIDATION_ERROR', 'Vyžadujú sa platné súradnice miesta postreku.');
   const radius = Math.max(100, Math.min(20000, Number(radiusMeters) || 3000));
+
+  const from = parseTimestamp(plannedFrom);
+  const to = parseTimestamp(plannedTo);
+  if (from === undefined || to === undefined) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Neplatný formát plánovaného dátumu postreku.');
+  }
+  if (from && to && to < from) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Koniec plánovaného postreku nemôže byť pred jeho začiatkom.');
+  }
+  const dose = dosePerHa === null || dosePerHa === '' ? null : Number(dosePerHa);
+  if (dose !== null && (!Number.isFinite(dose) || dose < 0)) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Dávka na hektár musí byť nezáporné číslo.');
+  }
 
   try {
     const collisions = await pool.query(
@@ -502,15 +557,22 @@ app.post('/api/spray-alerts', authenticate, async (req, res, next) => {
       [point.lat, point.lng, radius]
     );
     const result = await pool.query(
-      `INSERT INTO spray_alerts (sender_id, location_label, geom, note)
-       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, NULLIF($5, ''))
+      `INSERT INTO spray_alerts (sender_id, location_label, geom, note, preparation_name, active_substance, dose_per_ha, planned_from, planned_to)
+       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), $8, $9, $10)
        RETURNING id, created_at AS "createdAt"`,
-      [req.userId, String(locationLabel || `Súradnice ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`).slice(0, 255), point.lng, point.lat, String(note).slice(0, 2000)]
+      [
+        req.userId,
+        String(locationLabel || `Súradnice ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`).slice(0, 255),
+        point.lng, point.lat, String(note).slice(0, 2000),
+        String(preparationName).slice(0, 255), String(activeSubstance).slice(0, 255),
+        dose, from, to
+      ]
     );
     res.status(201).json({
       success: true,
       alertId: result.rows[0].id,
       createdAt: result.rows[0].createdAt,
+      status: 'NAPLANOVANY',
       radiusMeters: radius,
       affectedHives: collisions.rows.map((row) => ({
         hiveId: row.hive_id,
@@ -526,12 +588,35 @@ app.post('/api/spray-alerts', authenticate, async (req, res, next) => {
   }
 });
 
+// Zmena stavu postreku (Naplanovany -> Prebieha -> Dokonceny / Zruseny),
+// môže ju robiť len odosielateľ hlásenia.
+app.patch('/api/spray-alerts/:id/status', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  const status = String(req.body?.status || '').trim().toUpperCase();
+  if (!sprayAlertStatuses.has(status)) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Stav musí byť jeden z: NAPLANOVANY, PREBIEHA, DOKONCENY, ZRUSENY.');
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE spray_alerts SET status = $2 WHERE id = $1 AND sender_id = $3
+       RETURNING id, status, updated_at AS "updatedAt"`,
+      [req.params.id, status, req.userId]
+    );
+    if (!result.rows[0]) return sendError(res, 404, 'ALERT_NOT_FOUND');
+    res.json({ success: true, ...result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/spray-alerts/mine', authenticate, async (req, res, next) => {
   if (!requireDatabase(res)) return;
   try {
     const result = await pool.query(
       `SELECT DISTINCT sa.id, sa.location_label AS "locationLabel", sa.note,
-       sa.created_at AS "createdAt",
+       sa.preparation_name AS "preparationName", sa.active_substance AS "activeSubstance",
+       sa.dose_per_ha AS "dosePerHa", sa.planned_from AS "plannedFrom", sa.planned_to AS "plannedTo",
+       sa.status, sa.created_at AS "createdAt", sa.updated_at AS "updatedAt",
        ST_Y(sa.geom::geometry) AS lat, ST_X(sa.geom::geometry) AS lng,
        (sa.sender_id = $1) AS "isSender"
        FROM spray_alerts sa

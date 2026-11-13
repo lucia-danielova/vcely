@@ -149,6 +149,15 @@ export const backendApi = {
     const result = await request('/spray-alerts/mine');
     return result.alerts || [];
   },
+  async setSprayAlertStatus(alertId, status) {
+    return request(`/spray-alerts/${encodeURIComponent(alertId)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  },
+  async getParcelsByIco(ico) {
+    return request(`/parcels/by-ico/${encodeURIComponent(ico)}`);
+  },
+  async getMapParcels(bbox) {
+    return request(`/map/parcels?bbox=${encodeURIComponent(bbox.join(','))}`);
+  },
   async saveParcel(parcel) {
     return request('/parcels/save', { method: 'POST', body: JSON.stringify(parcel) });
   },

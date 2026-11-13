@@ -262,15 +262,23 @@ Request body:
   "lng": 17.99,
   "locationLabel": "LPIS-NR-4401/A",
   "note": "Aplikácia v nočných hodinách",
-  "radiusMeters": 3000
+  "radiusMeters": 3000,
+  "preparationName": "Mospilan 20 SP",
+  "activeSubstance": "acetamiprid",
+  "dosePerHa": 0.25,
+  "plannedFrom": "2026-11-20T05:00:00Z",
+  "plannedTo": "2026-11-20T09:00:00Z"
 }
 ```
+
+The evidence fields (`preparationName`, `activeSubstance`, `dosePerHa`, `plannedFrom`, `plannedTo`) are optional; `plannedTo` must not precede `plannedFrom`. New alerts start in status `NAPLANOVANY`.
 
 Response:
 ```json
 {
   "success": true,
   "alertId": 1,
+  "status": "NAPLANOVANY",
   "affectedHives": [
     { "hiveId": 1, "hiveName": "Včelnica pri sade", "hiveCount": 12, "cevz": "CEVZ-SK-1111", "distanceMeters": 534 }
   ],
@@ -278,8 +286,14 @@ Response:
 }
 ```
 
+### PATCH /api/spray-alerts/:id/status
+Transitions the alert lifecycle (`NAPLANOVANY` → `PREBIEHA` → `DOKONCENY` / `ZRUSENY`). Only the sender may change it.
+
 ### GET /api/spray-alerts/mine
-Returns alerts sent by the current user or affecting their hives (within 3 km). Requires authentication.
+Returns alerts sent by the current user or affecting their hives (within 3 km), including the evidence fields and current status. Requires authentication.
+
+### GET /api/parcels/by-ico/:ico
+Returns a GeoJSON FeatureCollection of parcels belonging to the entity with the given IČO (the "farmer's parcels" pattern). Public endpoint.
 
 ## 5. Spatial analysis endpoints
 
