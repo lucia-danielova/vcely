@@ -395,6 +395,160 @@ app.delete('/api/parcels/:id', authenticate, async (req, res, next) => {
   }
 });
 
+function parseLatLng(body) {
+  const lat = Number(body?.lat);
+  const lng = Number(body?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+app.post('/api/hives', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  const { name, count = 1, cevz = '', email = '' } = req.body || {};
+  const point = parseLatLng(req.body);
+  if (!String(name || '').trim() || !point) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Vyžaduje sa názov stanovišťa a platné súradnice.');
+  }
+  const colonyCount = Math.max(1, Math.min(500, Math.trunc(Number(count)) || 1));
+  try {
+    const result = await pool.query(
+      `INSERT INTO hives (owner_id, name, colony_count, cevz, contact_email, geom)
+       VALUES ($1, $2, $3, NULLIF($4, ''), NULLIF($5, ''), ST_SetSRID(ST_MakePoint($6, $7), 4326)::geography)
+       RETURNING id`,
+      [req.userId, String(name).trim().slice(0, 255), colonyCount, String(cevz).slice(0, 100), String(email).trim().slice(0, 255), point.lng, point.lat]
+    );
+    res.status(201).json({ success: true, hiveId: result.rows[0].id });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/hives/mine', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query(
+      `SELECT id, name, colony_count AS "count", cevz, contact_email AS "email",
+       ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng, created_at AS "createdAt"
+       FROM hives WHERE owner_id = $1 ORDER BY created_at DESC`,
+      [req.userId]
+    );
+    res.json({ success: true, hives: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/hives/:id', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query('DELETE FROM hives WHERE id = $1 AND owner_id = $2', [req.params.id, req.userId]);
+    if (!result.rowCount) return sendError(res, 404, 'HIVE_NOT_FOUND');
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// BBOX GeoJSON endpoint podľa ZBGIS vzoru (dokument, Part 1): mapa si sťahuje
+// len parcely vo viditeľnom výreze, priamo ako FeatureCollection pre webový
+// klient. Verejný endpoint bez citlivých údajov vlastníkov.
+app.get('/api/map/parcels', async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  const parts = String(req.query.bbox || '').split(',').map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Parameter bbox musí mať tvar minLng,minLat,maxLng,maxLat.');
+  }
+  const [minLng, minLat, maxLng, maxLat] = parts;
+  if (minLng >= maxLng || minLat >= maxLat || Math.abs(minLat) > 90 || Math.abs(maxLat) > 90 || Math.abs(minLng) > 180 || Math.abs(maxLng) > 180) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Neplatný rozsah súradníc v parametri bbox.');
+  }
+  try {
+    const result = await pool.query('SELECT public.map_parcels_geojson($1, $2, $3, $4) AS geojson', [minLng, minLat, maxLng, maxLat]);
+    res.json(result.rows[0].geojson);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GDPR (plán, krok 6.2): verejný náhľad nevracia presnú polohu ani kontakt
+// vlastníka — súradnice sú zaokrúhlené na mriežku ~1 km a údaje anonymizované.
+app.get('/api/hives/public', async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query(
+      `SELECT id, colony_count AS "count",
+       ROUND(ST_Y(geom::geometry)::numeric, 2)::double precision AS lat,
+       ROUND(ST_X(geom::geometry)::numeric, 2)::double precision AS lng
+       FROM hives`
+    );
+    res.json({ success: true, anonymized: true, hives: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Spatial alert engine (plán, krok 5.1): pri hlásení postreku sa cez
+// check_spray_collision_optimized nájdu včelnice v 3 km ochrannom pásme.
+app.post('/api/spray-alerts', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  const { locationLabel = '', note = '', radiusMeters = 3000 } = req.body || {};
+  const point = parseLatLng(req.body);
+  if (!point) return sendError(res, 400, 'VALIDATION_ERROR', 'Vyžadujú sa platné súradnice miesta postreku.');
+  const radius = Math.max(100, Math.min(20000, Number(radiusMeters) || 3000));
+
+  try {
+    const collisions = await pool.query(
+      'SELECT * FROM public.check_spray_collision_optimized($1, $2, $3)',
+      [point.lat, point.lng, radius]
+    );
+    const result = await pool.query(
+      `INSERT INTO spray_alerts (sender_id, location_label, geom, note)
+       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, NULLIF($5, ''))
+       RETURNING id, created_at AS "createdAt"`,
+      [req.userId, String(locationLabel || `Súradnice ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`).slice(0, 255), point.lng, point.lat, String(note).slice(0, 2000)]
+    );
+    res.status(201).json({
+      success: true,
+      alertId: result.rows[0].id,
+      createdAt: result.rows[0].createdAt,
+      radiusMeters: radius,
+      affectedHives: collisions.rows.map((row) => ({
+        hiveId: row.hive_id,
+        hiveName: row.hive_name,
+        hiveCount: row.hive_count,
+        cevz: row.hive_cevz,
+        distanceMeters: Math.round(row.distance_meters)
+      })),
+      affectedColonies: collisions.rows.reduce((sum, row) => sum + Number(row.hive_count || 0), 0)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/spray-alerts/mine', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT sa.id, sa.location_label AS "locationLabel", sa.note,
+       sa.created_at AS "createdAt",
+       ST_Y(sa.geom::geometry) AS lat, ST_X(sa.geom::geometry) AS lng,
+       (sa.sender_id = $1) AS "isSender"
+       FROM spray_alerts sa
+       WHERE sa.sender_id = $1
+          OR EXISTS (
+            SELECT 1 FROM hives h
+            WHERE h.owner_id = $1 AND ST_DWithin(h.geom, sa.geom, 3000)
+          )
+       ORDER BY sa.created_at DESC LIMIT 200`,
+      [req.userId]
+    );
+    res.json({ success: true, alerts: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use('/api', (req, res) => sendError(res, 404, 'NOT_FOUND'));
 app.use(express.static(path.resolve(__dirname, '..')));
 app.use((error, req, res, next) => {

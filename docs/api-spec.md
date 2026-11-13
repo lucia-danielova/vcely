@@ -200,6 +200,87 @@ Response:
 }
 ```
 
+## 4b. Map viewport endpoint
+
+### GET /api/map/parcels?bbox=minLng,minLat,maxLng,maxLat
+Returns parcels intersecting the visible map viewport as a GeoJSON FeatureCollection (ZBGIS pattern: the client fetches only what is on screen). Public endpoint, no owner personal data, capped at 2000 features.
+
+Response:
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Polygon", "coordinates": [] },
+      "properties": {
+        "id": 1,
+        "external_register_id": "LPIS-NR-4401/A",
+        "area_ha": 64.82,
+        "crop": "Repka olejná"
+      }
+    }
+  ]
+}
+```
+
+## 4c. Hive endpoints
+
+### POST /api/hives
+Registers a hive site for the current user. Requires authentication.
+
+Request body:
+```json
+{
+  "name": "Včelnica pri sade",
+  "count": 12,
+  "cevz": "CEVZ-SK-1111",
+  "email": "vcelar@example.sk",
+  "lat": 48.416,
+  "lng": 17.986
+}
+```
+
+### GET /api/hives/mine
+Returns the current user's hives with exact coordinates. Requires authentication.
+
+### DELETE /api/hives/:id
+Deletes the current user's hive. Requires authentication.
+
+### GET /api/hives/public
+Public anonymized view (GDPR spatial anonymization): coordinates rounded to a ~1 km grid, no owner contact details.
+
+## 4d. Spray alert endpoints
+
+### POST /api/spray-alerts
+Reports a planned spray event. Requires authentication. The server runs the spatial alert engine (`check_spray_collision_optimized`, 3 km protective radius) and returns the affected hives.
+
+Request body:
+```json
+{
+  "lat": 48.42,
+  "lng": 17.99,
+  "locationLabel": "LPIS-NR-4401/A",
+  "note": "Aplikácia v nočných hodinách",
+  "radiusMeters": 3000
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "alertId": 1,
+  "affectedHives": [
+    { "hiveId": 1, "hiveName": "Včelnica pri sade", "hiveCount": 12, "cevz": "CEVZ-SK-1111", "distanceMeters": 534 }
+  ],
+  "affectedColonies": 12
+}
+```
+
+### GET /api/spray-alerts/mine
+Returns alerts sent by the current user or affecting their hives (within 3 km). Requires authentication.
+
 ## 5. Spatial analysis endpoints
 
 ### POST /api/spatial/intersect

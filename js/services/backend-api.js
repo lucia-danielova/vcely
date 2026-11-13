@@ -134,6 +134,21 @@ export const backendApi = {
     const result = await request(`/registry/lpis${suffix}`);
     return result.parcels || [];
   },
+  async saveHive(hive) {
+    const result = await request('/hives', { method: 'POST', body: JSON.stringify(hive) });
+    return result.hiveId || null;
+  },
+  async getMyHives() {
+    const result = await request('/hives/mine');
+    return result.hives || [];
+  },
+  async reportSprayAlert(alert) {
+    return request('/spray-alerts', { method: 'POST', body: JSON.stringify(alert) });
+  },
+  async getMySprayAlerts() {
+    const result = await request('/spray-alerts/mine');
+    return result.alerts || [];
+  },
   async saveParcel(parcel) {
     return request('/parcels/save', { method: 'POST', body: JSON.stringify(parcel) });
   },

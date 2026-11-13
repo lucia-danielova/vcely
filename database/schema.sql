@@ -110,3 +110,31 @@ AS $$
     WHERE ST_DWithin(h.geom, ST_SetSRID(ST_MakePoint(spray_lng, spray_lat), 4326)::geography, radius_meters)
     ORDER BY ST_Distance(h.geom, ST_SetSRID(ST_MakePoint(spray_lng, spray_lat), 4326)::geography);
 $$;
+
+-- BBOX dopyt podľa ZBGIS vzoru: vráti parcely pretínajúce zobrazený výrez mapy
+-- ako GeoJSON FeatureCollection. Bezpečné voči SQL injekcii (len parametre),
+-- bez citlivých údajov vlastníkov a s horným limitom počtu záznamov.
+CREATE OR REPLACE FUNCTION public.map_parcels_geojson(
+    p_min_lng DOUBLE PRECISION,
+    p_min_lat DOUBLE PRECISION,
+    p_max_lng DOUBLE PRECISION,
+    p_max_lat DOUBLE PRECISION
+) RETURNS json
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT json_build_object(
+        'type', 'FeatureCollection',
+        'features', COALESCE(json_agg(ST_AsGeoJSON(t.*)::json), '[]'::json)
+    )
+    FROM (
+        SELECT id, external_register_id, area_ha, crop, geom
+        FROM public.user_parcels
+        WHERE ST_Intersects(
+            geom,
+            ST_MakeEnvelope(p_min_lng, p_min_lat, p_max_lng, p_max_lat, 4326)
+        )
+        ORDER BY id
+        LIMIT 2000
+    ) AS t;
+$$;

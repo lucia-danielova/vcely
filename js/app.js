@@ -1469,6 +1469,18 @@ function confirmAddHive() {
   closeHiveModal();
   if (appMapEngine) appMapEngine.renderAllHives();
   showToast('Včelstvo bolo pridané do mapy', 'success');
+
+  if (getCurrentUserSafe() && localStorage.getItem('agrogis_api_token_v1')) {
+    backendApi.saveHive(hive)
+      .then((hiveId) => {
+        if (!hiveId) return;
+        const withServerId = (store.getState().hives || []).map((h) => (h.id === hive.id ? { ...h, serverId: hiveId } : h));
+        store.setState({ hives: withServerId });
+      })
+      .catch((error) => {
+        if (!backendApi.isUnavailable(error)) console.warn('[AGROGIS] hive sync failed:', error);
+      });
+  }
 }
 
 function focusUserAssetsOnMap() {
@@ -1546,6 +1558,17 @@ function triggerSprayAlertEmails(lat, lng, collisionsCount, totalColonies) {
     recipients,
     note: 'Notifikácie odoslané včelárom v 3 km ochrannom pásme.'
   });
+
+  if (currentUser && localStorage.getItem('agrogis_api_token_v1')) {
+    backendApi.reportSprayAlert({
+      lat: Number(lat),
+      lng: Number(lng),
+      locationLabel: report?.contextLabel || '',
+      note: `Zasiahnuté stanoviská: ${collisionsCount} (${totalColonies} rodín)`
+    }).catch((error) => {
+      if (!backendApi.isUnavailable(error)) console.warn('[AGROGIS] spray alert sync failed:', error);
+    });
+  }
 
   refreshDashboardStats();
   showToast(`Odoslané výstrahy pre ${collisionsCount} stanovíšť (${totalColonies} rodín)`, 'info');
