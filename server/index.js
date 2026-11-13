@@ -94,6 +94,18 @@ function normalizeRole(rawRole) {
   return allowedRoles.has(role) ? role : 'AGRO';
 }
 
+const cevzPattern = /^CEVZ-SK-\d{4}$/;
+
+async function generateCevzCode() {
+  // Retry against the unique index: concurrent inserts can draw the same number.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidate = `CEVZ-SK-${crypto.randomInt(1000, 10000)}`;
+    const existing = await pool.query('SELECT 1 FROM app_users WHERE cevz = $1', [candidate]);
+    if (!existing.rows.length) return candidate;
+  }
+  throw new Error('CEVZ_GENERATION_FAILED');
+}
+
 async function fetchRegisterUz(ico) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
@@ -145,7 +157,8 @@ app.post('/api/auth/register', async (req, res, next) => {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const normalizedRole = normalizeRole(role);
   const normalizedIco = ['AGRO', 'AGRO_PRO'].includes(normalizedRole) ? cleanIco(ico) : '';
-  const cleanCevz = normalizedRole === 'BEEKEEPER' || normalizedRole === 'BEE_HOBBY' || normalizedRole === 'BEE_BEGINNER' ? String(cevz || '').trim() : '';
+  const isBeeRole = normalizedRole === 'BEEKEEPER' || normalizedRole === 'BEE_HOBBY' || normalizedRole === 'BEE_BEGINNER';
+  let cleanCevz = isBeeRole ? String(cevz || '').trim() : '';
   const cleanLpisId = ['AGRO', 'AGRO_PRO'].includes(normalizedRole) ? String(lpisId || '').trim() : '';
   const cleanCompanyName = ['AGRO', 'AGRO_PRO', 'BEEKEEPER'].includes(normalizedRole) ? String(companyName || companySearch || '').trim() : '';
   const location = profileLocation && typeof profileLocation === 'object' ? profileLocation : null;
@@ -157,8 +170,10 @@ app.post('/api/auth/register', async (req, res, next) => {
     return sendError(res, 400, 'VALIDATION_ERROR', 'Vyžaduje sa platný e-mail, heslo s minimálne 6 znakmi, meno a zvolený profil.');
   }
   if (normalizedIco && !icoPattern.test(normalizedIco)) return sendError(res, 400, 'VALIDATION_ERROR', 'IČO musí obsahovať 6 až 10 číslic.');
+  if (cleanCevz && !cevzPattern.test(cleanCevz)) return sendError(res, 400, 'VALIDATION_ERROR', 'CEVZ kód musí mať tvar CEVZ-SK-XXXX.');
 
   try {
+    if (isBeeRole && !cleanCevz) cleanCevz = await generateCevzCode();
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await pool.query(
       `INSERT INTO app_users (email, password_hash, role, name, ico, cevz, phone, address, lpis_id, profile_location_lat, profile_location_lng, company_name)

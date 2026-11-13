@@ -37,6 +37,7 @@ Request body:
 Notes:
 - `role` must be one of `AGRO`, `AGRO_PRO`, `BEEKEEPER`, `BEE_HOBBY`, `BEE_BEGINNER`, `GARDENER`, `GARDEN_NEW`.
 - `ico` is stored only for `AGRO` / `AGRO_PRO`, `cevz` only for the beekeeper roles, `lpisId` only for `AGRO` / `AGRO_PRO`, and `companyName` for `AGRO` / `AGRO_PRO` / `BEEKEEPER`.
+- `cevz` must match `CEVZ-SK-XXXX`; when omitted for a beekeeper role, the server generates a unique code automatically.
 - `profileLocation` is optional and used by community roles to anchor the account on the map.
 
 Success response:

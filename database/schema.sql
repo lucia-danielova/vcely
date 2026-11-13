@@ -32,6 +32,7 @@ ALTER TABLE public.app_users ADD CONSTRAINT app_users_role_check
 CREATE UNIQUE INDEX IF NOT EXISTS app_users_email_lower_unique ON public.app_users (LOWER(email));
 CREATE INDEX IF NOT EXISTS app_users_ico_idx ON public.app_users (ico) WHERE ico IS NOT NULL;
 CREATE INDEX IF NOT EXISTS app_users_lpis_idx ON public.app_users (lpis_id) WHERE lpis_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS app_users_cevz_unique ON public.app_users (cevz) WHERE cevz IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS public.registered_entities (
     ico VARCHAR(10) PRIMARY KEY,
