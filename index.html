@@ -9,7 +9,7 @@
         (function () {
             var search = location.search;
             if (search.charAt(1) === '/') {
-                var decoded = search.slice(2).split('&').map(function (part, index) {
+                var decoded = search.slice(1).split('&').map(function (part, index) {
                     return index === 0 ? part : part.replace(/~and~/g, '&');
                 }).join('?');
                 window.history.replaceState(null, null,
