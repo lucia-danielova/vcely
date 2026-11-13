@@ -60,9 +60,10 @@ export class AgroAuthService {
         localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
     }
 
-    async registerUser({ role, name, email, password, ico, phone, address }) {
+    async registerUser({ role, name, email, password, ico, phone, address, lpisId, companyName, profileLocation }) {
         const cleanEmail = email.trim().toLowerCase();
-        const cleanRole = ['AGRO', 'BEEKEEPER'].includes(role) ? role : 'AGRO';
+        const allowedRoles = ['AGRO', 'AGRO_PRO', 'BEEKEEPER', 'BEE_HOBBY', 'BEE_BEGINNER', 'GARDENER', 'GARDEN_NEW'];
+        const cleanRole = allowedRoles.includes(role) ? role : 'AGRO';
         const cleanCode = (ico || '').trim();
 
         if (this.isCloudConfigured && this.supabase) {
@@ -96,10 +97,13 @@ export class AgroAuthService {
             name: name.trim(),
             email: cleanEmail,
             passwordHash: password,
-            ico: cleanRole === 'BEEKEEPER' ? '' : cleanCode,
-            cevz: cleanRole === 'BEEKEEPER' ? (cleanCode || `CEVZ-SK-${Math.floor(1000 + Math.random() * 9000)}`) : '',
+            ico: ['AGRO', 'AGRO_PRO'].includes(cleanRole) ? cleanCode : '',
+            cevz: ['BEEKEEPER', 'BEE_HOBBY', 'BEE_BEGINNER'].includes(cleanRole) ? (cleanCode || `CEVZ-SK-${Math.floor(1000 + Math.random() * 9000)}`) : '',
             phone: (phone || '').trim() || '+421 900 000 000',
             address: (address || '').trim() || 'Slovenská republika',
+            lpisId: ['AGRO', 'AGRO_PRO'].includes(cleanRole) ? (lpisId || '').trim() : '',
+            companyName: ['AGRO', 'AGRO_PRO', 'BEEKEEPER'].includes(cleanRole) ? (companyName || name).trim() : '',
+            profileLocation: profileLocation && typeof profileLocation === 'object' ? profileLocation : null,
             createdAt: new Date().toISOString()
         };
 

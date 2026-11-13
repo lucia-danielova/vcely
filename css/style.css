@@ -20,124 +20,502 @@ html, body {
 }
 
 .landing-screen {
-    background-color: #eef3eb;
+    --eco-ink: #15301f;
+    --eco-deep: #184a32;
+    --eco-forest: #1f7a4d;
+    --eco-leaf: #4fa66a;
+    --eco-mint: #eaf3e2;
+    --eco-cream: #fbf6e6;
+    --eco-gold: #e0a512;
+    --eco-honey: #a8730a;
+
+    position: fixed;
+    background-color: var(--eco-mint);
     background-image:
-        radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.95), transparent 58%),
-        linear-gradient(135deg, #f3f6eb 0%, #e8f1eb 58%, #f8f2df 100%);
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255, 255, 255, 0.9), transparent 60%),
+        linear-gradient(160deg, #f4f8ec 0%, #e7f1e3 45%, #eef6ea 75%, #fbf6e6 100%);
+    color: var(--eco-ink);
+    isolation: isolate;
 }
 
-.landing-header {
-    background: rgba(255, 255, 255, 0.82);
-    border-bottom: 1px solid rgba(148, 163, 149, 0.25);
-    backdrop-filter: blur(12px);
+/* Jemné rozostrené "planétové" škvrny na pozadí — atmosféra zelenej planéty */
+.landing-screen::before,
+.landing-screen::after {
+    content: '';
+    position: fixed;
+    z-index: -1;
+    border-radius: 50%;
+    filter: blur(70px);
+    pointer-events: none;
+    opacity: 0.55;
 }
 
-.landing-choice-card {
-    min-height: 290px;
-    border: 1px solid #d6ddd4;
-    border-top-width: 4px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: 0 12px 30px rgba(31, 48, 36, 0.07);
-    transition: transform 180ms ease, box-shadow 180ms ease;
+.landing-screen::before {
+    top: -12%;
+    left: -10%;
+    width: 46vw;
+    height: 46vw;
+    background: radial-gradient(circle, rgba(79, 166, 106, 0.45), transparent 70%);
 }
 
-.landing-choice-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 18px 34px rgba(31, 48, 36, 0.12);
+.landing-screen::after {
+    bottom: -16%;
+    right: -12%;
+    width: 50vw;
+    height: 50vw;
+    background: radial-gradient(circle, rgba(224, 165, 18, 0.28), transparent 70%);
 }
 
-.landing-bee-choice {
-    border-top-color: #d97706;
+.landing-content {
+    position: relative;
+    z-index: 1;
 }
 
-.landing-grow-choice {
-    border-top-color: #16835d;
+/* ---- Hlavička: nenápadná značka, vizuál hovorí namiesto nápisu ---- */
+.eco-landing-header {
+    position: relative;
+    z-index: 2;
 }
 
-.landing-choice-icon {
-    display: grid;
-    width: 3.5rem;
-    height: 3.5rem;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: 8px;
-    font-size: 1.8rem;
+.eco-landing-brand img {
+    filter: drop-shadow(0 2px 6px rgba(24, 74, 50, 0.18));
 }
 
-.landing-bee-icon {
-    background: #fff1c2;
+/* ---- HERO: hlavné posolstvo projektu ---- */
+.eco-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 auto 1.1rem;
+    padding: 0.4rem 1rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(31, 122, 77, 0.25);
+    color: var(--eco-deep);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 16px rgba(24, 74, 50, 0.08);
 }
 
-.landing-grow-icon {
-    background: #dcefe1;
+.eco-hero-title {
+    font-size: clamp(2rem, 5.4vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    color: var(--eco-deep);
 }
 
-.landing-primary-button,
-.landing-account-button,
-.landing-register-button {
-    min-height: 44px;
-    border-radius: 6px;
-    padding: 0.65rem 1rem;
-    font-size: 0.875rem;
+.eco-hero-highlight {
+    color: var(--eco-gold);
+    text-shadow: 0 2px 18px rgba(224, 165, 18, 0.35);
+}
+
+.eco-hero-sub {
+    max-width: 42rem;
+    margin: 1.1rem auto 0;
+    font-size: clamp(0.95rem, 1.6vw, 1.125rem);
+    line-height: 1.65;
+    color: #35503f;
+}
+
+.eco-trust-strip {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.4rem;
+}
+
+.eco-trust-chip {
+    font-size: 0.7rem;
     font-weight: 700;
-    transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+    color: var(--eco-deep);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(31, 122, 77, 0.2);
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    white-space: nowrap;
 }
 
-.landing-primary-button {
+/* ---- MAPA: ústredný, živý a presný GIS prvok úvodnej obrazovky ---- */
+.landing-map-section {
+    position: relative;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 68rem;
+}
+
+.landing-map-frame {
+    position: relative;
+    width: 100%;
+    height: clamp(360px, 58vh, 640px);
+    border-radius: 2rem;
+    overflow: hidden;
+    background: linear-gradient(160deg, #cfe3d3, #e7ead0);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+        0 0 0 6px rgba(255, 255, 255, 0.55),
+        0 0 0 7px rgba(31, 122, 77, 0.18),
+        0 35px 70px -20px rgba(15, 42, 28, 0.35),
+        0 15px 35px -10px rgba(224, 165, 18, 0.18);
+}
+
+/* Jemná vinieta na okrajoch, aby mapa plynule splývala s rámom (bez zásahu do farieb podkladu) */
+.landing-map-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: inset 0 0 70px 10px rgba(21, 48, 31, 0.18);
+}
+
+.landing-map-pillbar {
+    filter: drop-shadow(0 8px 20px rgba(15, 42, 28, 0.18));
+}
+
+.landing-map-caption {
+    max-width: 38rem;
+    font-size: 0.8rem;
+    color: #44604f;
+    font-weight: 600;
+}
+
+/* Odznak "živá mapa" — zvýrazňuje, že ide o skutočnú funkčnú mapu, nie ilustráciu */
+.landing-map-live-badge {
+    padding: 0.4rem 0.8rem 0.4rem 0.65rem;
+    border-radius: 9999px;
+    background: rgba(21, 48, 31, 0.55);
+    backdrop-filter: blur(6px);
+    color: #eefbf1;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.45);
+}
+
+.landing-live-dot {
+    position: relative;
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #4fe08a;
+    box-shadow: 0 0 0 0 rgba(79, 224, 138, 0.6);
+    animation: landing-live-pulse 2.2s ease-out infinite;
+}
+
+@keyframes landing-live-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(79, 224, 138, 0.55); }
+    70% { box-shadow: 0 0 0 8px rgba(79, 224, 138, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(79, 224, 138, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-live-dot {
+        animation: none;
+    }
+}
+
+/* ---- Spojovacia myšlienka medzi mapou a profilmi ---- */
+.eco-connector {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    color: #fff;
+    justify-content: center;
+    gap: 1.1rem;
+    margin: 2.6rem auto 2rem;
+    max-width: 40rem;
 }
 
-.landing-bee-button {
-    background: #a64b08;
+.eco-connector-line {
+    flex: 1 1 auto;
+    height: 1px;
+    max-width: 6rem;
+    background: linear-gradient(90deg, transparent, rgba(31, 122, 77, 0.35));
 }
 
-.landing-bee-button:hover {
-    background: #843a05;
+.eco-connector-line:last-child {
+    background: linear-gradient(90deg, rgba(31, 122, 77, 0.35), transparent);
 }
 
-.landing-grow-button,
+.eco-connector p {
+    flex: 0 0 auto;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--eco-deep);
+}
+
+.eco-connector span {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4a6b57;
+}
+
+/* ---- Profily: vizuálna nápoveda k výberu profilu pri registrácii ---- */
+.profile-groups {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
+    max-width: 68rem;
+    margin: 0 auto;
+}
+
+.profile-group {
+    padding: 1.1rem 1.1rem 1.25rem;
+    border-radius: 1.75rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 18px 40px -22px rgba(15, 42, 28, 0.35);
+}
+
+.profile-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.85rem;
+    padding-left: 0.3rem;
+}
+
+.profile-group-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 6px 14px -6px rgba(15, 42, 28, 0.35);
+}
+
+.profile-group-bee .profile-group-icon {
+    background: linear-gradient(145deg, #fde8a8, #f3c969);
+}
+
+.profile-group-agro .profile-group-icon {
+    background: linear-gradient(145deg, #cdeed7, #9fd9b3);
+}
+
+.profile-group-header h2 {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--eco-deep);
+}
+
+.profile-card-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.profile-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border-radius: 1.1rem;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(31, 122, 77, 0.14);
+    text-align: left;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.profile-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 26px -12px rgba(15, 42, 28, 0.25);
+    border-color: rgba(31, 122, 77, 0.3);
+}
+
+.profile-card-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 1rem;
+    font-size: 1.4rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 6px 14px -8px rgba(15, 42, 28, 0.3);
+}
+
+.profile-card-icon-bee {
+    background: linear-gradient(150deg, #fdf0c8, #f7d690);
+}
+
+.profile-card-icon-agro {
+    background: linear-gradient(150deg, #dcefe1, #b9e2c6);
+}
+
+.profile-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+}
+
+.profile-card-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--eco-ink);
+}
+
+.profile-card-desc {
+    font-size: 0.73rem;
+    color: #5a7064;
+    line-height: 1.3;
+}
+
+/* ---- Záverečná výzva na akciu: Prihlásenie / Registrácia ---- */
+.landing-cta-band {
+    position: relative;
+    margin: 2.25rem auto 0;
+    max-width: 40rem;
+    padding: 1.75rem 1.5rem;
+    border-radius: 1.75rem;
+    text-align: center;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.85), rgba(234, 243, 226, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 25px 55px -25px rgba(15, 42, 28, 0.4);
+    overflow: hidden;
+}
+
+.landing-cta-band::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    width: 140%;
+    height: 140%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(224, 165, 18, 0.16), transparent 65%);
+    pointer-events: none;
+}
+
+.landing-cta-lead {
+    position: relative;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--eco-deep);
+    margin-bottom: 1.1rem;
+}
+
+.landing-cta-buttons {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.85rem;
+}
+
+.landing-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 11rem;
+    justify-content: center;
+    padding: 0.7rem 1.6rem 0.7rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.landing-cta-icon {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    font-size: 1rem;
+}
+
+.landing-cta-btn-register .landing-cta-icon {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.landing-cta-btn-login .landing-cta-icon {
+    background: rgba(31, 122, 77, 0.12);
+}
+
+.landing-cta-btn-register {
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--eco-forest), var(--eco-leaf));
+    box-shadow: 0 14px 28px -10px rgba(31, 122, 77, 0.55);
+}
+
+.landing-cta-btn-register:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 34px -10px rgba(31, 122, 77, 0.6);
+}
+
+.landing-cta-btn-login {
+    color: var(--eco-deep);
+    background: #ffffff;
+    border: 2px solid rgba(31, 122, 77, 0.35);
+}
+
+.landing-cta-btn-login:hover {
+    transform: translateY(-2px);
+    border-color: var(--eco-forest);
+    box-shadow: 0 14px 26px -14px rgba(15, 42, 28, 0.3);
+}
+
+.landing-cta-footnote {
+    position: relative;
+    margin-top: 1rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #5a7064;
+}
+
+/* ---- Zdieľané malé tlačidlá v hlavičke a odkazy ---- */
+.landing-account-button,
 .landing-register-button {
-    background: #08734f;
-    color: #fff;
-}
-
-.landing-grow-button:hover,
-.landing-register-button:hover {
-    background: #075d40;
+    min-height: 40px;
+    border-radius: 9999px;
+    padding: 0.5rem 1.05rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    transition: background-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
 
 .landing-account-button {
-    border: 1px solid #cbd5cf;
-    background: #fff;
-    color: #25352d;
+    border: 1px solid rgba(31, 122, 77, 0.3);
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--eco-deep);
 }
 
 .landing-account-button:hover {
-    background: #f2f6f2;
+    background: #ffffff;
+    transform: translateY(-1px);
 }
 
-.landing-pro-link,
+.landing-register-button {
+    background: var(--eco-forest);
+    color: #fff;
+    box-shadow: 0 8px 18px -6px rgba(31, 122, 77, 0.5);
+}
+
+.landing-register-button:hover {
+    background: var(--eco-deep);
+    transform: translateY(-1px);
+}
+
 .landing-map-link {
     min-height: 40px;
-    color: #46564b;
-    font-size: 0.8rem;
-    font-weight: 600;
+    color: #44604f;
+    font-size: 0.78rem;
+    font-weight: 700;
     text-decoration: underline;
     text-underline-offset: 3px;
 }
 
-.landing-pro-link {
-    align-self: flex-start;
-    margin-top: 0.5rem;
-}
-
-.landing-pro-link:hover,
 .landing-map-link:hover {
-    color: #075d40;
+    color: var(--eco-deep);
 }
 
 .landing-screen button:focus-visible {
@@ -145,16 +523,33 @@ html, body {
     outline-offset: 3px;
 }
 
+@media (min-width: 900px) {
+    .profile-groups {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .landing-choice-card,
-    .landing-primary-button,
+    .profile-card,
+    .landing-cta-btn,
     .landing-account-button,
     .landing-register-button {
         transition: none;
     }
 }
 
-/* Plynulá animácia skrytia úvodnej 50/50 obrazovky */
+@media (max-width: 767px) {
+    .landing-map-frame {
+        height: clamp(300px, 46vh, 460px);
+        border-radius: 1.5rem;
+    }
+
+    .eco-landing-brand-tagline {
+        display: none;
+    }
+}
+
+/* Plynulá animácia skrytia úvodnej obrazovky */
 .landing-hidden {
     display: none !important;
     opacity: 0;
@@ -456,7 +851,7 @@ html, body {
         padding-right: 9px;
     }
 
-    #app-workspace > main > div:nth-child(2) {
+    .landing-map-pillbar {
         left: 8px;
         right: 64px;
         max-width: none;
@@ -466,7 +861,7 @@ html, body {
         scrollbar-width: none;
     }
 
-    #app-workspace > main > div:nth-child(2)::-webkit-scrollbar {
+    .landing-map-pillbar::-webkit-scrollbar {
         display: none;
     }
 
@@ -487,28 +882,23 @@ html, body {
         margin-bottom: 4px;
     }
 
-    #landing-portal-overlay > div:first-child {
+    .eco-landing-header {
         padding: 8px 10px;
         gap: 6px;
         flex-wrap: wrap;
     }
 
-    #landing-portal-overlay > div:first-child > div:first-child {
-        padding: 7px 9px;
+    .eco-landing-brand {
         gap: 8px;
     }
 
-    #landing-portal-overlay > div:first-child > div:first-child > div:nth-child(2) > div:nth-child(2) {
-        display: none;
-    }
-
-    #landing-portal-overlay > div:first-child > div:last-child {
+    .eco-landing-header-nav {
         width: 100%;
         justify-content: center;
         gap: 6px;
     }
 
-    #landing-portal-overlay > div:first-child > div:last-child button {
+    .eco-landing-header-nav button {
         padding: 8px 9px;
         font-size: 10px;
         white-space: nowrap;

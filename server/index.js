@@ -5,12 +5,14 @@ const path = require('node:path');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('./db');
+const { isValidLpisId, isLpisSourceConfigured, fetchLpisParcelsFromSource, listLocalLpisParcels } = require('./lpis');
 
 const app = express();
 const port = Number(process.env.PORT || 8000);
 const jwtSecret = process.env.JWT_SECRET;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const icoPattern = /^\d{6,10}$/;
+const allowedRoles = new Set(['AGRO', 'AGRO_PRO', 'BEEKEEPER', 'BEE_HOBBY', 'BEE_BEGINNER', 'GARDENER', 'GARDEN_NEW']);
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
@@ -62,6 +64,10 @@ function authenticate(req, res, next) {
 }
 
 function publicUser(row) {
+  const lat = Number(row.profile_location_lat);
+  const lng = Number(row.profile_location_lng);
+  const hasProfileLocation = Number.isFinite(lat) && Number.isFinite(lng);
+
   return {
     id: row.id,
     email: row.email,
@@ -71,6 +77,9 @@ function publicUser(row) {
     cevz: row.cevz || '',
     phone: row.phone || '',
     address: row.address || '',
+    lpisId: row.lpis_id || '',
+    companyName: row.company_name || '',
+    profileLocation: hasProfileLocation ? { lat, lng } : null,
     isVerified: row.is_verified,
     createdAt: row.created_at
   };
@@ -78,6 +87,11 @@ function publicUser(row) {
 
 function cleanIco(value) {
   return String(value || '').replace(/\s/g, '');
+}
+
+function normalizeRole(rawRole) {
+  const role = String(rawRole || '').trim();
+  return allowedRoles.has(role) ? role : 'AGRO';
 }
 
 async function fetchRegisterUz(ico) {
@@ -126,23 +140,31 @@ app.post('/api/auth/register', async (req, res, next) => {
   if (!requireDatabase(res)) return;
   if (!jwtSecret) return sendError(res, 503, 'AUTH_NOT_CONFIGURED', 'Nastavte JWT_SECRET.');
 
-  const { email, password, role = 'AGRO', name, ico = '', cevz = '', phone = '', address = '' } = req.body || {};
+  const body = req.body || {};
+  const { email, password, role, name, ico = '', cevz = '', phone = '', address = '', lpisId = '', profileLocation = null, companyName = '', companySearch = '' } = body;
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  const normalizedRole = ['AGRO', 'BEEKEEPER'].includes(role) ? role : null;
-  const normalizedIco = role === 'AGRO' ? cleanIco(ico) : '';
+  const normalizedRole = normalizeRole(role);
+  const normalizedIco = ['AGRO', 'AGRO_PRO'].includes(normalizedRole) ? cleanIco(ico) : '';
+  const cleanCevz = normalizedRole === 'BEEKEEPER' || normalizedRole === 'BEE_HOBBY' || normalizedRole === 'BEE_BEGINNER' ? String(cevz || '').trim() : '';
+  const cleanLpisId = ['AGRO', 'AGRO_PRO'].includes(normalizedRole) ? String(lpisId || '').trim() : '';
+  const cleanCompanyName = ['AGRO', 'AGRO_PRO', 'BEEKEEPER'].includes(normalizedRole) ? String(companyName || companySearch || '').trim() : '';
+  const location = profileLocation && typeof profileLocation === 'object' ? profileLocation : null;
+  const lat = Number(location?.lat);
+  const lng = Number(location?.lng);
+  const hasLocation = Number.isFinite(lat) && Number.isFinite(lng);
 
-  if (!emailPattern.test(normalizedEmail) || typeof password !== 'string' || password.length < 8 || !String(name || '').trim() || !normalizedRole) {
-    return sendError(res, 400, 'VALIDATION_ERROR', 'Vyžaduje sa platný e-mail, heslo s minimálne 8 znakmi, meno a rola AGRO alebo BEEKEEPER.');
+  if (!emailPattern.test(normalizedEmail) || typeof password !== 'string' || password.length < 6 || !String(name || '').trim() || !allowedRoles.has(normalizedRole)) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'Vyžaduje sa platný e-mail, heslo s minimálne 6 znakmi, meno a zvolený profil.');
   }
   if (normalizedIco && !icoPattern.test(normalizedIco)) return sendError(res, 400, 'VALIDATION_ERROR', 'IČO musí obsahovať 6 až 10 číslic.');
 
   try {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await pool.query(
-      `INSERT INTO app_users (email, password_hash, role, name, ico, cevz, phone, address)
-       VALUES ($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''))
-       RETURNING id, email, role, name, ico, cevz, phone, address, is_verified, created_at`,
-      [normalizedEmail, passwordHash, normalizedRole, String(name).trim(), normalizedIco, String(cevz).trim(), String(phone).trim(), String(address).trim()]
+      `INSERT INTO app_users (email, password_hash, role, name, ico, cevz, phone, address, lpis_id, profile_location_lat, profile_location_lng, company_name)
+       VALUES ($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), $10, $11, NULLIF($12, ''))
+       RETURNING id, email, role, name, ico, cevz, phone, address, lpis_id, profile_location_lat, profile_location_lng, company_name, is_verified, created_at`,
+      [normalizedEmail, passwordHash, normalizedRole, String(name).trim(), normalizedIco, cleanCevz, String(phone).trim(), String(address).trim(), cleanLpisId, hasLocation ? lat : null, hasLocation ? lng : null, cleanCompanyName]
     );
     const user = publicUser(result.rows[0]);
     res.status(201).json({ success: true, token: signToken(user.id), user });
@@ -175,7 +197,11 @@ app.post('/api/auth/logout', (req, res) => res.json({ success: true }));
 app.get('/api/users/me', authenticate, async (req, res, next) => {
   if (!requireDatabase(res)) return;
   try {
-    const result = await pool.query('SELECT id, email, role, name, ico, cevz, phone, address, is_verified, created_at FROM app_users WHERE id = $1', [req.userId]);
+    const result = await pool.query(
+      `SELECT id, email, role, name, ico, cevz, phone, address, lpis_id, profile_location_lat, profile_location_lng, company_name, is_verified, created_at
+       FROM app_users WHERE id = $1`,
+      [req.userId]
+    );
     if (!result.rows[0]) return sendError(res, 404, 'USER_NOT_FOUND');
     res.json({ success: true, user: publicUser(result.rows[0]) });
   } catch (error) {
@@ -185,16 +211,30 @@ app.get('/api/users/me', authenticate, async (req, res, next) => {
 
 app.patch('/api/users/me', authenticate, async (req, res, next) => {
   if (!requireDatabase(res)) return;
-  const { name, phone, address } = req.body || {};
+  const { name, phone, address, lpisId, companyName, profileLocation } = req.body || {};
   if (typeof name !== 'string' || !name.trim()) return sendError(res, 400, 'VALIDATION_ERROR');
+  const lat = Number(profileLocation?.lat);
+  const lng = Number(profileLocation?.lng);
+  const hasLocation = Number.isFinite(lat) && Number.isFinite(lng);
   try {
     const result = await pool.query(
-      `UPDATE app_users SET name = $2, phone = $3, address = $4, updated_at = NOW()
-       WHERE id = $1 RETURNING id, email, role, name, ico, cevz, phone, address, is_verified, created_at`,
-      [req.userId, name.trim(), String(phone || '').trim(), String(address || '').trim()]
+      `UPDATE app_users SET name = $2, phone = $3, address = $4, lpis_id = NULLIF($5, ''), company_name = NULLIF($6, ''), profile_location_lat = $7, profile_location_lng = $8, updated_at = NOW()
+       WHERE id = $1 RETURNING id, email, role, name, ico, cevz, phone, address, lpis_id, profile_location_lat, profile_location_lng, company_name, is_verified, created_at`,
+      [req.userId, name.trim(), String(phone || '').trim(), String(address || '').trim(), String(lpisId || '').trim(), String(companyName || '').trim(), hasLocation ? lat : null, hasLocation ? lng : null]
     );
     if (!result.rows[0]) return sendError(res, 404, 'USER_NOT_FOUND');
     res.json({ success: true, user: publicUser(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/users/me', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query('DELETE FROM app_users WHERE id = $1 RETURNING id', [req.userId]);
+    if (!result.rows[0]) return sendError(res, 404, 'USER_NOT_FOUND');
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }
@@ -246,6 +286,28 @@ app.get('/api/registry/entities', async (req, res, next) => {
     );
     res.json({ success: true, entities: result.rows });
   } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/registry/lpis', authenticate, async (req, res, next) => {
+  if (!requireDatabase(res)) return;
+  const lpisId = String(req.query.lpisId || '').trim();
+  if (lpisId && !isValidLpisId(lpisId)) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'LPIS ID musí obsahovať 3 až 64 znakov (písmená, číslice, pomlčka, podčiarkovník).');
+  }
+  try {
+    const localParcels = await listLocalLpisParcels(pool, req.userId, lpisId);
+    let externalParcels = [];
+    let source = 'local';
+    if (lpisId && isLpisSourceConfigured()) {
+      externalParcels = await fetchLpisParcelsFromSource({ lpisId, baseUrl: process.env.LPIS_API_URL });
+      source = 'lpis-api';
+    }
+    res.json({ success: true, source, parcels: [...externalParcels, ...localParcels] });
+  } catch (error) {
+    if (error.name === 'AbortError') return sendError(res, 504, 'LPIS_TIMEOUT', 'LPIS zdroj neodpovedal v časovom limite.');
+    if (error.code === 'LPIS_SOURCE_ERROR') return sendError(res, 502, 'LPIS_SOURCE_ERROR', 'LPIS zdroj vrátil chybu alebo neplatné dáta.');
     next(error);
   }
 });

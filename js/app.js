@@ -64,6 +64,57 @@ function getCurrentUserSafe() {
   return safeUser;
 }
 
+const accountRoleConfig = {
+  AGRO: { label: 'Poľnohospodár', icon: '🚜' },
+  AGRO_PRO: { label: 'Profi poľnohospodár', icon: '🚜' },
+  BEEKEEPER: { label: 'Profi včelár', icon: '🐝' },
+  BEE_HOBBY: { label: 'Hobby včelár', icon: '🍯' },
+  BEE_BEGINNER: { label: 'Začiatočný včelár', icon: '🌼' },
+  GARDENER: { label: 'Záhradkár', icon: '🌻' },
+  GARDEN_NEW: { label: 'Budúci pestovateľ', icon: '🌱' }
+};
+
+function getAccountRoleInfo(role) {
+  return accountRoleConfig[role] || { label: 'Poľnohospodár', icon: '🚜' };
+}
+
+function renderProfileMetadata(currentUser) {
+  if (!currentUser) return;
+  const roleInfo = getAccountRoleInfo(currentUser.role);
+  const location = currentUser.profileLocation
+    && Number.isFinite(Number(currentUser.profileLocation.lat))
+    && Number.isFinite(Number(currentUser.profileLocation.lng))
+    ? `${Number(currentUser.profileLocation.lat).toFixed(5)}, ${Number(currentUser.profileLocation.lng).toFixed(5)}`
+    : 'Nepridelená';
+  const created = currentUser.createdAt && !Number.isNaN(Date.parse(currentUser.createdAt))
+    ? new Date(currentUser.createdAt).toLocaleDateString('sk-SK')
+    : '—';
+
+  const values = {
+    'pmeta-role': `${roleInfo.icon} ${roleInfo.label}`,
+    'pmeta-company': currentUser.companyName || '—',
+    'pmeta-code': currentUser.ico || currentUser.cevz || '—',
+    'pmeta-lpis': currentUser.lpisId || '—',
+    'pmeta-location': location,
+    'pmeta-phone': currentUser.phone || '—',
+    'pmeta-address': currentUser.address || '—',
+    'pmeta-created': created
+  };
+  for (const [id, value] of Object.entries(values)) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
+
+  const verified = $('pmeta-verified');
+  if (verified) {
+    verified.textContent = currentUser.isVerified ? '✅ Overený subjekt' : '⏳ Čaká na overenie';
+    verified.classList.toggle('bg-emerald-100', Boolean(currentUser.isVerified));
+    verified.classList.toggle('text-emerald-800', Boolean(currentUser.isVerified));
+    verified.classList.toggle('bg-stone-200', !currentUser.isVerified);
+    verified.classList.toggle('text-slate-600', !currentUser.isVerified);
+  }
+}
+
 function syncAuthUi() {
   const currentUser = getCurrentUserSafe();
   const guest = $('header-guest-controls');
@@ -79,6 +130,7 @@ function syncAuthUi() {
 
   if (!currentUser) return;
 
+  const roleInfo = getAccountRoleInfo(currentUser.role);
   const userDisplay = $('user-display');
   const roleDisplay = $('role-display');
   const headerUserIcon = $('header-user-icon');
@@ -91,15 +143,17 @@ function syncAuthUi() {
   const dashAvatar = $('dash-avatar');
 
   if (userDisplay) userDisplay.textContent = currentUser.name || 'Používateľ';
-  if (roleDisplay) roleDisplay.textContent = currentUser.role === 'BEEKEEPER' ? 'Včelár' : 'Poľnohospodár';
-  if (headerUserIcon) headerUserIcon.textContent = currentUser.role === 'BEEKEEPER' ? '🐝' : '🚜';
+  if (roleDisplay) roleDisplay.textContent = roleInfo.label;
+  if (headerUserIcon) headerUserIcon.textContent = roleInfo.icon;
   if (spName) spName.textContent = currentUser.name || 'Používateľ';
   if (spMeta) spMeta.textContent = currentUser.ico || currentUser.cevz || 'Bez registračného kódu';
-  if (spRole) spRole.textContent = currentUser.role === 'BEEKEEPER' ? 'Včelár' : 'Poľnohospodár';
+  if (spRole) spRole.textContent = roleInfo.label;
   if (dashUserName) dashUserName.textContent = currentUser.name || 'Používateľ';
-  if (dashUserRole) dashUserRole.textContent = currentUser.role === 'BEEKEEPER' ? 'VČELÁR' : 'POĽNOHOSPODÁR';
+  if (dashUserRole) dashUserRole.textContent = roleInfo.label.toUpperCase();
   if (dashUserSub) dashUserSub.textContent = `${currentUser.ico || currentUser.cevz || 'Bez kódu'} • ${currentUser.email || ''}`;
-  if (dashAvatar) dashAvatar.textContent = currentUser.role === 'BEEKEEPER' ? '🐝' : '🚜';
+  if (dashAvatar) dashAvatar.textContent = roleInfo.icon;
+
+  renderProfileMetadata(currentUser);
 }
 
 function ensureDemoUsersStored() {
@@ -211,11 +265,26 @@ function showToast(message, tone = 'success') {
   }, 2800);
 }
 
+// Mapa (#map-stage) žije na jednom mieste a presúva sa medzi úvodnou obrazovkou
+// a hlavnou aplikáciou, aby išlo vždy o tú istú živú ZBGIS mapu bez opätovnej inicializácie.
+function relocateMapStage(hostId) {
+  const stage = $('map-stage');
+  const host = $(hostId);
+  if (!stage || !host || stage.parentElement === host) return;
+  host.appendChild(stage);
+  if (appMapEngine && appMapEngine.map) {
+    appMapEngine.map.invalidateSize();
+    requestAnimationFrame(() => appMapEngine.map.invalidateSize());
+  }
+}
+
 function openLandingPortal() {
   const overlay = $('landing-portal-overlay');
   if (!overlay) return;
   overlay.classList.remove('landing-hidden');
+  overlay.scrollTop = 0;
   appState.landingVisible = true;
+  relocateMapStage('landing-map-frame');
 }
 
 function closeLandingPortal() {
@@ -223,6 +292,7 @@ function closeLandingPortal() {
   if (!overlay) return;
   overlay.classList.add('landing-hidden');
   appState.landingVisible = false;
+  relocateMapStage('map-mount');
 }
 
 function selectUserPersona(personaKey) {
@@ -307,11 +377,42 @@ function switchAuthModalTab(tabName) {
   }
 }
 
+function populateProfileForm(user = getCurrentUserSafe()) {
+  if (!user) return;
+
+  const profName = $('prof-name');
+  const profEmail = $('prof-email');
+  const profIco = $('prof-ico');
+  const profPhone = $('prof-phone');
+  const profAddress = $('prof-address');
+  const profCompany = $('prof-company');
+  const profLpisId = $('prof-lpis-id');
+  const profLocation = $('prof-location');
+
+  if (profName) profName.value = user.name || '';
+  if (profEmail) profEmail.value = user.email || '';
+  if (profIco) {
+    const code = user.role === 'BEEKEEPER' ? (user.cevz || user.ico || '') : (user.ico || user.cevz || '');
+    profIco.value = code;
+  }
+  if (profPhone) profPhone.value = user.phone || '';
+  if (profAddress) profAddress.value = user.address || '';
+  if (profCompany) profCompany.value = user.companyName || user.name || '';
+  if (profLpisId) profLpisId.value = user.lpisId || '';
+  if (profLocation) {
+    const loc = user.profileLocation;
+    profLocation.value = loc ? `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}` : 'Nespridelené';
+  }
+}
+
 function openUserDashboardModal() {
   const modal = $('user-dashboard-modal');
   if (!modal) return;
+  switchDashboardSection('profile');
+  populateProfileForm();
   modal.classList.remove('hidden');
   refreshDashboardStats();
+  syncLpisParcelsFromApi();
 }
 
 function closeUserDashboardModal() {
@@ -669,21 +770,349 @@ function refreshDashboardStats() {
     const alerts = state.sprayAlerts || [];
     stats.alerts.textContent = `${alerts.length} záznamov`;
   }
+
+  renderDashboardLists(state);
 }
 
+function createEmptyListItem(text) {
+  const el = document.createElement('div');
+  el.className = 'text-slate-500 italic text-[11px] py-2';
+  el.textContent = text;
+  return el;
+}
+
+function renderDashboardLists(state) {
+  const userIco = state.currentUser?.ico || '';
+  const parcels = state.lpisParcels.filter((p) => p.ownerIco === userIco);
+
+  const parcelsList = $('dash-my-parcels-list');
+  if (parcelsList) {
+    parcelsList.replaceChildren();
+    if (!parcels.length) {
+      parcelsList.appendChild(createEmptyListItem('Pod vaším účtom nie sú evidované žiadne pôdne bloky. Nakreslite ich na mape alebo spárujte LPIS ID.'));
+    }
+    parcels.forEach((parcel) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'w-full text-left bg-white hover:bg-emerald-50 border border-stone-200 rounded-xl px-3 py-2 transition';
+
+      const title = document.createElement('div');
+      title.className = 'font-bold text-emerald-800 font-mono text-[11px]';
+      title.textContent = `${parcel.id} • ${Number(parcel.areaHa || 0).toFixed(2)} ha`;
+      const detail = document.createElement('div');
+      detail.className = 'text-slate-600 text-[11px] mt-0.5';
+      detail.textContent = `${parcel.crop || 'Neurčená plodina'} • ${parcel.kUzemie || ''}`;
+
+      item.append(title, detail);
+      item.addEventListener('click', () => focusLpisParcelOnMap(parcel.id));
+      parcelsList.appendChild(item);
+    });
+  }
+
+  const hivesList = $('dash-my-hives-list');
+  if (hivesList) {
+    const hives = state.hives || [];
+    hivesList.replaceChildren();
+    if (!hives.length) {
+      hivesList.appendChild(createEmptyListItem('Zatiaľ nemáte pridané žiadne stanovište. Pridajte ho tlačidlom vyššie.'));
+    }
+    hives.forEach((hive) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'w-full text-left bg-white hover:bg-amber-50 border border-stone-200 rounded-xl px-3 py-2 transition';
+
+      const title = document.createElement('div');
+      title.className = 'font-bold text-amber-800 text-[11px]';
+      title.textContent = `🐝 ${hive.name || 'Stanovište'} • ${Number(hive.count || 0)} rodín`;
+      const detail = document.createElement('div');
+      detail.className = 'text-slate-600 font-mono text-[11px] mt-0.5';
+      detail.textContent = `${hive.cevz || 'bez CEVZ'} • ${Number(hive.lat).toFixed(4)}, ${Number(hive.lng).toFixed(4)}`;
+
+      item.append(title, detail);
+      item.addEventListener('click', () => focusHiveOnMap(hive.id));
+      hivesList.appendChild(item);
+    });
+  }
+
+  const alertsTable = $('dash-alerts-table');
+  if (alertsTable) {
+    const alerts = state.sprayAlerts || [];
+    alertsTable.replaceChildren();
+    if (!alerts.length) {
+      alertsTable.appendChild(createEmptyListItem('Zatiaľ neboli zaznamenané žiadne hlásenia postrekov v ochrannom pásme.'));
+    }
+    alerts.forEach((alert) => {
+      const item = document.createElement('div');
+      item.className = 'bg-white border border-stone-200 rounded-xl px-3 py-2 text-[11px] text-slate-700 space-y-1';
+
+      const head = document.createElement('div');
+      head.className = 'flex justify-between gap-2 font-bold text-slate-800';
+      const title = document.createElement('span');
+      title.textContent = `⚠️ ${alert.title || alert.type || 'Hlásenie postreku'}`;
+      const when = document.createElement('span');
+      when.className = 'font-mono text-slate-500 shrink-0';
+      when.textContent = alert.timestamp || (alert.createdAt && !Number.isNaN(Date.parse(alert.createdAt))
+        ? new Date(alert.createdAt).toLocaleString('sk-SK')
+        : '');
+      head.append(title, when);
+
+      const detail = document.createElement('div');
+      detail.className = 'text-slate-600';
+      const impact = Number.isFinite(Number(alert.affectedHivesCount))
+        ? `Zasiahnuté stanoviská: ${alert.affectedHivesCount} (${Number(alert.affectedColonies) || 0} rodín)`
+        : '';
+      detail.textContent = [alert.locationLabel || alert.location || '', impact].filter(Boolean).join(' • ');
+
+      const meta = document.createElement('div');
+      meta.className = 'text-slate-500';
+      const recipients = Array.isArray(alert.recipients) && alert.recipients.length
+        ? `Príjemcovia: ${alert.recipients.join(', ')}`
+        : '';
+      meta.textContent = [alert.senderName || '', recipients].filter(Boolean).join(' • ');
+
+      item.append(head, detail, meta);
+      alertsTable.appendChild(item);
+    });
+  }
+}
+
+function focusLpisParcelOnMap(parcelId) {
+  const parcel = store.getState().lpisParcels.find((p) => p.id === parcelId);
+  if (!parcel) return;
+  closeUserDashboardModal();
+  if (!appMapEngine?.map) return;
+  if (Array.isArray(parcel.center) && parcel.center.length === 2) {
+    appMapEngine.map.setView(parcel.center, 14);
+  }
+  if (store.getState().isLpisLayerVisible) {
+    appMapEngine.renderLpisParcels(parcel.ownerIco);
+  }
+  showToast(`Parcela ${parcel.id} je zobrazená na mape`, 'info');
+}
+
+function focusHiveOnMap(hiveId) {
+  const hive = (store.getState().hives || []).find((h) => String(h.id) === String(hiveId));
+  if (!hive) return;
+  closeUserDashboardModal();
+  if (appMapEngine?.map && Number.isFinite(Number(hive.lat)) && Number.isFinite(Number(hive.lng))) {
+    appMapEngine.map.setView([Number(hive.lat), Number(hive.lng)], 14);
+    appMapEngine.renderAllHives();
+  }
+}
+
+function geoJsonPolygonToLeaflet(geometry) {
+  const ring = geometry?.coordinates?.[0];
+  if (!Array.isArray(ring) || ring.length < 4) return null;
+  const coords = ring
+    .filter((point) => Array.isArray(point) && point.length >= 2)
+    .map(([lng, lat]) => [Number(lat), Number(lng)])
+    .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
+  return coords.length >= 4 ? coords : null;
+}
+
+async function syncLpisParcelsFromApi() {
+  const currentUser = getCurrentUserSafe();
+  if (!currentUser?.lpisId || !['AGRO', 'AGRO_PRO'].includes(currentUser.role)) return;
+  if (!localStorage.getItem('agrogis_api_token_v1')) return;
+
+  let apiParcels;
+  try {
+    apiParcels = await backendApi.getLpisParcels(currentUser.lpisId);
+  } catch (error) {
+    if (!backendApi.isUnavailable(error)) {
+      console.warn('[AGROGIS] LPIS lookup failed:', error);
+    }
+    return;
+  }
+
+  const mapped = apiParcels
+    .map((parcel) => {
+      const coords = geoJsonPolygonToLeaflet(parcel.geometry);
+      if (!coords || !parcel.externalRegisterId) return null;
+      const center = [
+        coords.reduce((sum, point) => sum + point[0], 0) / coords.length,
+        coords.reduce((sum, point) => sum + point[1], 0) / coords.length
+      ];
+      return {
+        id: parcel.externalRegisterId,
+        ownerIco: currentUser.ico || '',
+        ownerName: currentUser.companyName || currentUser.name || '',
+        kUzemie: '',
+        crop: parcel.crop || 'Neurčená plodina',
+        areaHa: Number(parcel.areaHa || 0),
+        kultura: 'LPIS register',
+        center,
+        coords
+      };
+    })
+    .filter(Boolean);
+
+  if (!mapped.length) return;
+  const existing = store.getState().lpisParcels;
+  const knownIds = new Set(mapped.map((p) => p.id));
+  store.setState({ lpisParcels: [...existing.filter((p) => p.ownerIco !== currentUser.ico || !knownIds.has(p.id)), ...mapped] });
+  if (appMapEngine) appMapEngine.renderLpisParcels();
+  refreshDashboardStats();
+}
+
+const professionalRegisterRoles = new Set(['AGRO', 'AGRO_PRO', 'BEEKEEPER']);
+const communityRegisterRoles = new Set(['BEE_HOBBY', 'BEE_BEGINNER', 'GARDENER', 'GARDEN_NEW']);
+
 function updateRegisterRoleFields(role) {
+  const nameLabel = $('reg-name-label');
   const label = $('reg-code-label');
   const input = $('reg-ico');
+  const professionalBlock = $('reg-professional-block');
+  const communityBlock = $('reg-community-block');
+  const lpisBlock = $('reg-lpis-block');
+  const addressWrap = $('reg-address-wrap');
+  const companySearch = $('reg-company-search');
+  const companySuggestions = $('reg-company-suggestions');
+  const communityTitle = $('reg-community-title');
+  const communityHelp = $('reg-community-help');
+
+  const isProfessional = professionalRegisterRoles.has(role);
+  const isCommunity = communityRegisterRoles.has(role);
+
+  if (professionalBlock) professionalBlock.classList.toggle('hidden', !isProfessional);
+  if (communityBlock) communityBlock.classList.toggle('hidden', !isCommunity);
+  if (lpisBlock) lpisBlock.classList.toggle('hidden', role !== 'AGRO' && role !== 'AGRO_PRO');
+  if (addressWrap) addressWrap.classList.toggle('hidden', !isProfessional && !isCommunity ? false : isProfessional && role === 'BEEKEEPER' ? false : false);
+
+  if (companySearch) {
+    companySearch.placeholder = role === 'BEEKEEPER' ? 'napr. Včelárska spoločnosť / CEVZ' : 'napr. PD Devio / 00190225';
+  }
+
+  if (nameLabel) {
+    if (role === 'AGRO' || role === 'AGRO_PRO') {
+      nameLabel.textContent = 'Názov farmy / podnik *';
+    } else if (role === 'BEEKEEPER') {
+      nameLabel.textContent = 'Názov včelárskeho podniku / usadlosti *';
+    } else {
+      nameLabel.textContent = 'Meno alebo prezývka *';
+    }
+  }
+
   if (label && input) {
     if (role === 'BEEKEEPER') {
-      label.textContent = 'CEVZ / Registračný kód (nepovinné)';
+      label.textContent = 'CEVZ / registračný kód';
       input.placeholder = 'napr. CEVZ-BA-0142';
-      input.value = input.value || 'CEVZ-BA-0142';
+      if (!input.value) input.value = 'CEVZ-BA-0142';
+    } else if (role === 'AGRO' || role === 'AGRO_PRO') {
+      label.textContent = 'IČO subjektu';
+      input.placeholder = 'napr. 00190225';
     } else {
-      label.textContent = 'IČO (nepovinné pre Hobby)';
+      label.textContent = 'IČO / identifikátor (voliteľné)';
       input.placeholder = 'napr. 00190225';
     }
   }
+
+  if (communityTitle) {
+    const titles = {
+      BEE_HOBBY: 'Vyznačte na mape, kde máte svoje úle.',
+      BEE_BEGINNER: 'Vyznačte na mape, kde plánujete mať svoje úle.',
+      GARDENER: 'Kde sa nachádza vaša záhrada?',
+      GARDEN_NEW: 'Kde sa nachádza vaša záhrada alebo záhon?'
+    };
+    communityTitle.textContent = titles[role] || 'Vyberte svoju lokalitu';
+  }
+
+  if (communityHelp) {
+    const hints = {
+      BEE_HOBBY: 'Vďaka tomuto bodu môže systém včas varovať o plánovanom postreku v okruhu 3 km od vašej lokality.',
+      BEE_BEGINNER: 'Tento bod pomôže systému upozorniť vás na predpokladaný postrek v okruhu 3 km od vašich úľov.',
+      GARDENER: 'Pridaním svojej záhrady sa môžete zapojiť do siete Bonusových darov a vidieť, kde sa v okolí nachádzajú včely.',
+      GARDEN_NEW: 'Aj malá záhrada môže pomôcť ochrane biodiverzity — včely, kompost a biopásy začínajú práve tu.'
+    };
+    communityHelp.textContent = hints[role] || 'Vďaka tejto lokalite budete dostávať relevantné upozornenia o vašom okolí.';
+  }
+
+  if (companySuggestions) companySuggestions.classList.add('hidden');
+  const pin = $('reg-location-pin');
+  if (pin) pin.classList.add('hidden');
+  const lat = $('reg-location-lat');
+  const lng = $('reg-location-lng');
+  if (lat) lat.value = '';
+  if (lng) lng.value = '';
+}
+
+function renderCompanySuggestions(query = '') {
+  const suggestions = $('reg-company-suggestions');
+  const input = $('reg-company-search');
+  if (!suggestions || !input) return;
+
+  const value = String(query || '').trim();
+  if (!value) {
+    suggestions.classList.add('hidden');
+    suggestions.innerHTML = '';
+    return;
+  }
+
+  const state = store.getState();
+  const normalized = normalizeQuery(value);
+  const hits = [...(state.entities || [])]
+    .filter((entity) => {
+      const ico = normalizeQuery(entity.ico || '');
+      const name = normalizeQuery(entity.name || '');
+      const city = normalizeQuery(entity.city || '');
+      const address = normalizeQuery(entity.address || '');
+      return ico.includes(normalized) || name.includes(normalized) || city.includes(normalized) || address.includes(normalized);
+    })
+    .slice(0, 5);
+
+  if (!hits.length) {
+    suggestions.innerHTML = '<div class="px-2 py-2 text-[11px] text-slate-500">Nenašli sa žiadne oficiálne subjekty.</div>';
+    suggestions.classList.remove('hidden');
+    return;
+  }
+
+  suggestions.innerHTML = hits.map((entity) => `
+    <button type="button" class="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-left transition hover:bg-emerald-100" data-entity-ico="${entity.ico || ''}" data-entity-name="${escapeHtml(entity.name || '')}" data-entity-address="${escapeHtml(entity.address || '')}">
+      <div class="font-bold text-slate-900">${escapeHtml(entity.name || 'Neznámy subjekt')}</div>
+      <div class="mt-0.5 text-[10px] text-slate-600">${escapeHtml(entity.ico || 'IČO neznáme')} · ${escapeHtml(entity.city || entity.address || 'Sídlo neuvedené')}</div>
+    </button>
+  `).join('');
+
+  suggestions.querySelectorAll('[data-entity-ico]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const nameInput = $('reg-name');
+      const addressInput = $('reg-address');
+      const icoInput = $('reg-ico');
+      const searchValue = button.getAttribute('data-entity-name') || '';
+      const addressValue = button.getAttribute('data-entity-address') || '';
+      const icoValue = button.getAttribute('data-entity-ico') || '';
+
+      if (nameInput) nameInput.value = searchValue;
+      if (addressInput) addressInput.value = addressValue;
+      if (icoInput) icoInput.value = icoValue;
+      if (input) input.value = searchValue;
+      suggestions.classList.add('hidden');
+      showToast(`Vybraný subjekt: ${searchValue}`, 'success');
+    });
+  });
+
+  suggestions.classList.remove('hidden');
+}
+
+function handleCommunityMapClick(event) {
+  const surface = $('reg-map-surface');
+  const pin = $('reg-location-pin');
+  const latInput = $('reg-location-lat');
+  const lngInput = $('reg-location-lng');
+  if (!surface || !pin || !latInput || !lngInput) return;
+
+  const rect = surface.getBoundingClientRect();
+  const x = Math.min(Math.max(event.clientX - rect.left, 14), rect.width - 14);
+  const y = Math.min(Math.max(event.clientY - rect.top, 14), rect.height - 14);
+
+  pin.style.left = `${x}px`;
+  pin.style.top = `${y}px`;
+  pin.classList.remove('hidden');
+
+  const lat = 48.6 - (y / rect.height) * 0.9;
+  const lng = 17.0 + (x / rect.width) * 1.2;
+  latInput.value = String(lat.toFixed(5));
+  lngInput.value = String(lng.toFixed(5));
 }
 
 function autofillRegistrationFromICO() {
@@ -703,6 +1132,8 @@ function autofillRegistrationFromICO() {
   const addressInput = $('reg-address');
   if (nameInput) nameInput.value = match.name;
   if (addressInput) addressInput.value = match.address;
+  const companySearch = $('reg-company-search');
+  if (companySearch) companySearch.value = match.name;
 
   showToast(`Údaje pre ${match.name} boli doplnené automaticky`, 'success');
 }
@@ -719,6 +1150,7 @@ function quickDemoLogin(email, password) {
   store.setState({ currentUser: safeUser });
   syncAuthUi();
   closeAuthModal();
+  closeLandingPortal();
   showToast(`Prihlásený demo používateľ: ${safeUser.name}`, 'success');
 }
 
@@ -737,6 +1169,7 @@ async function submitLoginForm(event) {
     store.setState({ currentUser: user });
     syncAuthUi();
     closeAuthModal();
+    closeLandingPortal();
     showToast(`Vitajte, ${user.name}`, 'success');
     return;
   } catch (error) {
@@ -756,6 +1189,7 @@ async function submitLoginForm(event) {
   store.setState({ currentUser: safeUser });
   syncAuthUi();
   closeAuthModal();
+  closeLandingPortal();
   showToast(`Vitajte, ${safeUser.name} (lokálny režim)`, 'info');
 }
 
@@ -776,15 +1210,26 @@ async function submitRegisterForm(event) {
     return;
   }
 
+  const lpisId = $('reg-lpis-id')?.value?.trim() || '';
+  const locationLat = $('reg-location-lat')?.value?.trim() || '';
+  const locationLng = $('reg-location-lng')?.value?.trim() || '';
+  const companySearch = $('reg-company-search')?.value?.trim() || '';
+  const isProfessionalRole = professionalRegisterRoles.has(role);
+  const isCommunityRole = communityRegisterRoles.has(role);
+  const normalizedRole = role;
+
   const request = {
-    role,
+    role: normalizedRole,
     name,
     email,
     password,
-    ico: role === 'AGRO' ? ico : '',
-    cevz: role === 'BEEKEEPER' ? ico : '',
+    ico: isProfessionalRole ? ico : '',
+    cevz: role === 'BEEKEEPER' ? (ico || '') : '',
     phone,
-    address
+    address,
+    lpisId: role === 'AGRO' || role === 'AGRO_PRO' ? lpisId : '',
+    profileLocation: isCommunityRole && locationLat && locationLng ? { lat: Number(locationLat), lng: Number(locationLng) } : null,
+    companySearch: isProfessionalRole ? companySearch || name : ''
   };
 
   try {
@@ -792,6 +1237,7 @@ async function submitRegisterForm(event) {
     store.setState({ currentUser: user });
     syncAuthUi();
     closeAuthModal();
+    closeLandingPortal();
     showToast('Účet bol vytvorený v databáze', 'success');
     return;
   } catch (error) {
@@ -810,14 +1256,17 @@ async function submitRegisterForm(event) {
 
   const newUser = {
     id: `usr-${Date.now()}`,
-    role,
+    role: normalizedRole,
     name,
     email: email.toLowerCase(),
     passwordHash: password,
-    ico: role === 'AGRO' ? (ico || '') : '',
+    ico: isProfessionalRole ? (ico || '') : '',
     cevz: role === 'BEEKEEPER' ? (ico || `CEVZ-SK-${Math.floor(1000 + Math.random() * 9000)}`) : '',
     phone,
     address,
+    lpisId: role === 'AGRO' || role === 'AGRO_PRO' ? lpisId : '',
+    profileLocation: isCommunityRole && locationLat && locationLng ? { lat: Number(locationLat), lng: Number(locationLng) } : null,
+    companyName: isProfessionalRole ? companySearch || name : '',
     createdAt: new Date().toISOString()
   };
 
@@ -826,6 +1275,7 @@ async function submitRegisterForm(event) {
   store.setState({ currentUser: sanitizeUser(newUser) });
   syncAuthUi();
   closeAuthModal();
+  closeLandingPortal();
   showToast('Registrácia bola uložená lokálne (backend nie je dostupný)', 'info');
 }
 
@@ -845,7 +1295,7 @@ function switchDashboardSection(tabName) {
   });
 }
 
-function saveUserProfileChanges(event) {
+async function saveUserProfileChanges(event) {
   event.preventDefault();
   const currentUser = getCurrentUserSafe();
   if (!currentUser) {
@@ -853,37 +1303,91 @@ function saveUserProfileChanges(event) {
     return;
   }
 
-  const name = document.getElementById('prof-name')?.value || currentUser.name;
-  const ico = document.getElementById('prof-ico')?.value || currentUser.ico || '';
-  const phone = document.getElementById('prof-phone')?.value || currentUser.phone || '';
-  const address = document.getElementById('prof-address')?.value || currentUser.address || '';
+  const name = document.getElementById('prof-name')?.value?.trim() || currentUser.name || '';
+  const ico = document.getElementById('prof-ico')?.value?.trim() || currentUser.ico || '';
+  const phone = document.getElementById('prof-phone')?.value?.trim() || currentUser.phone || '';
+  const address = document.getElementById('prof-address')?.value?.trim() || currentUser.address || '';
+  const companyName = document.getElementById('prof-company')?.value?.trim() || currentUser.companyName || name;
+  const lpisId = document.getElementById('prof-lpis-id')?.value?.trim() || currentUser.lpisId || '';
+  const profileLocation = currentUser.profileLocation && Number.isFinite(currentUser.profileLocation.lat) && Number.isFinite(currentUser.profileLocation.lng)
+    ? { lat: Number(currentUser.profileLocation.lat), lng: Number(currentUser.profileLocation.lng) }
+    : null;
 
   const users = getStoredUsers();
   const idx = users.findIndex((u) => u.email.toLowerCase() === currentUser.email.toLowerCase());
+  const nextUser = {
+    ...currentUser,
+    name,
+    ico: currentUser.role === 'BEEKEEPER' ? (currentUser.cevz || ico) : ico,
+    cevz: currentUser.role === 'BEEKEEPER' ? (ico || currentUser.cevz || '') : currentUser.cevz,
+    phone,
+    address,
+    companyName,
+    lpisId,
+    profileLocation
+  };
+
   if (idx >= 0) {
     users[idx] = {
       ...users[idx],
       name,
-      ico: currentUser.role === 'BEEKEEPER' ? users[idx].cevz || ico : ico,
+      ico: currentUser.role === 'BEEKEEPER' ? (users[idx].cevz || ico) : ico,
       cevz: currentUser.role === 'BEEKEEPER' ? (ico || users[idx].cevz) : users[idx].cevz,
       phone,
-      address
+      address,
+      companyName,
+      lpisId,
+      profileLocation
     };
     saveStoredUsers(users);
   }
 
-  const updatedUser = {
-    ...currentUser,
-    name,
-    ico: currentUser.role === 'BEEKEEPER' ? (users[idx]?.cevz || ico) : ico,
-    cevz: currentUser.role === 'BEEKEEPER' ? (ico || users[idx]?.cevz || '') : currentUser.cevz,
-    phone,
-    address
-  };
+  try {
+    const updatedFromServer = await backendApi.updateCurrentUser({
+      name,
+      phone,
+      address,
+      lpisId,
+      companyName,
+      profileLocation
+    });
+    if (updatedFromServer) {
+      store.setState({ currentUser: { ...nextUser, ...updatedFromServer, email: updatedFromServer.email || currentUser.email } });
+      syncAuthUi();
+      showToast('Profil bol uložený', 'success');
+      return;
+    }
+  } catch (error) {
+    console.warn('[AGROGIS] backend profile update failed, using local fallback:', error);
+  }
 
-  store.setState({ currentUser: updatedUser });
+  store.setState({ currentUser: nextUser });
   syncAuthUi();
-  showToast('Profil bol uložený', 'success');
+  showToast('Profil bol uložený lokálne', 'success');
+}
+
+async function deleteUserProfile() {
+  const currentUser = getCurrentUserSafe();
+  if (!currentUser) {
+    showToast('Najprv sa prihláste do účtu', 'warning');
+    return;
+  }
+
+  const confirmed = window.confirm('Naozaj chcete zmazať tento účet? Táto akcia je nevratná.');
+  if (!confirmed) return;
+
+  try {
+    await backendApi.deleteCurrentUser();
+  } catch (error) {
+    console.warn('[AGROGIS] backend delete failed, continuing with local cleanup:', error);
+  }
+
+  const users = getStoredUsers().filter((user) => user.email.toLowerCase() !== currentUser.email.toLowerCase());
+  saveStoredUsers(users);
+  store.setState({ currentUser: null });
+  syncAuthUi();
+  closeUserDashboardModal();
+  showToast('Účet bol odstránený', 'info');
 }
 
 function toggleLpisLayer(checked) {
@@ -1020,11 +1524,39 @@ function exportGeoJSON() {
 }
 
 function triggerSprayAlertEmails(lat, lng, collisionsCount, totalColonies) {
+  const report = store.getState().lastCollisionReport;
+  const currentUser = getCurrentUserSafe();
+  const recipients = Array.isArray(report?.collisions)
+    ? report.collisions.map((c) => c.hive_email || c.hive_name).filter(Boolean)
+    : [];
+
+  store.addSprayAlert({
+    id: Date.now(),
+    createdAt: new Date().toISOString(),
+    timestamp: new Date().toLocaleString('sk-SK'),
+    type: 'SPRAY_ALERT',
+    title: 'Hlásenie postreku',
+    senderName: currentUser ? `${currentUser.name}${currentUser.ico ? ` (IČO: ${currentUser.ico})` : ''}` : 'Neprihlásený používateľ',
+    senderEmail: currentUser?.email || '',
+    locationLabel: report?.contextLabel || `Súradnice ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`,
+    lat: Number(lat),
+    lng: Number(lng),
+    affectedHivesCount: collisionsCount,
+    affectedColonies: totalColonies,
+    recipients,
+    note: 'Notifikácie odoslané včelárom v 3 km ochrannom pásme.'
+  });
+
+  refreshDashboardStats();
   showToast(`Odoslané výstrahy pre ${collisionsCount} stanovíšť (${totalColonies} rodín)`, 'info');
 }
 
 function initUi() {
-  selectUserPersona('AGRO_PRO');
+  // Prednastaví východziu perzónu pre appku na pozadí, ale NEZATVÁRA úvodnú obrazovku —
+  // tá musí ostať prvým, čo používateľ uvidí (srdcom je mapa a posolstvo o ochrane včiel).
+  appState.activePersona = 'AGRO_PRO';
+  store.setState({ currentPersona: 'AGRO_PRO' });
+  updatePersonaUi('AGRO_PRO');
   switchSidebarTab('search');
   switchAuthModalTab('login');
   setBaseMap('ortho');
@@ -1087,6 +1619,8 @@ window.submitRegisterForm = submitRegisterForm;
 window.quickDemoLogin = quickDemoLogin;
 window.autofillRegistrationFromICO = autofillRegistrationFromICO;
 window.updateRegisterRoleFields = updateRegisterRoleFields;
+window.renderCompanySuggestions = renderCompanySuggestions;
+window.handleCommunityMapClick = handleCommunityMapClick;
 window.toggleLeftSidebar = toggleLeftSidebar;
 window.switchSidebarTab = switchSidebarTab;
 window.handleLogoutUser = handleLogoutUser;
@@ -1118,6 +1652,10 @@ window.toggleDmrLayer = toggleDmrLayer;
 window.setLayerOpacity = setLayerOpacity;
 window.switchDashboardSection = switchDashboardSection;
 window.saveUserProfileChanges = saveUserProfileChanges;
+window.deleteUserProfile = deleteUserProfile;
+window.populateProfileForm = populateProfileForm;
+window.focusLpisParcelOnMap = focusLpisParcelOnMap;
+window.focusHiveOnMap = focusHiveOnMap;
 window.focusUserAssetsOnMap = focusUserAssetsOnMap;
 window.openHiveModal = openHiveModal;
 window.closeHiveModal = closeHiveModal;

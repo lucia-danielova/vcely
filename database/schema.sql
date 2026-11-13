@@ -5,19 +5,33 @@ CREATE TABLE IF NOT EXISTS public.app_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(32) NOT NULL CHECK (role IN ('AGRO', 'BEEKEEPER')),
+    role VARCHAR(32) NOT NULL CHECK (role IN ('AGRO', 'AGRO_PRO', 'BEEKEEPER', 'BEE_HOBBY', 'BEE_BEGINNER', 'GARDENER', 'GARDEN_NEW')),
     name VARCHAR(255) NOT NULL,
     ico VARCHAR(10),
     cevz VARCHAR(64),
     phone VARCHAR(64),
     address TEXT,
+    lpis_id VARCHAR(64),
+    profile_location_lat DOUBLE PRECISION,
+    profile_location_lng DOUBLE PRECISION,
+    company_name VARCHAR(255),
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Idempotent upgrades for databases created before the profile metadata and role extensions.
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS lpis_id VARCHAR(64);
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS profile_location_lat DOUBLE PRECISION;
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS profile_location_lng DOUBLE PRECISION;
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);
+ALTER TABLE public.app_users DROP CONSTRAINT IF EXISTS app_users_role_check;
+ALTER TABLE public.app_users ADD CONSTRAINT app_users_role_check
+    CHECK (role IN ('AGRO', 'AGRO_PRO', 'BEEKEEPER', 'BEE_HOBBY', 'BEE_BEGINNER', 'GARDENER', 'GARDEN_NEW'));
+
 CREATE UNIQUE INDEX IF NOT EXISTS app_users_email_lower_unique ON public.app_users (LOWER(email));
 CREATE INDEX IF NOT EXISTS app_users_ico_idx ON public.app_users (ico) WHERE ico IS NOT NULL;
+CREATE INDEX IF NOT EXISTS app_users_lpis_idx ON public.app_users (lpis_id) WHERE lpis_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS public.registered_entities (
     ico VARCHAR(10) PRIMARY KEY,

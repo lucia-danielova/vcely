@@ -22,20 +22,35 @@ Request body:
 {
   "email": "user@example.com",
   "password": "StrongPass123",
-  "accountType": "registered_entity",
+  "role": "AGRO_PRO",
+  "name": "PD Example",
   "ico": "00123456",
-  "isVerified": false
+  "cevz": "",
+  "phone": "+421 900 000 000",
+  "address": "Obec 1, 900 00 Obec",
+  "lpisId": "LPIS-NR-4401",
+  "companyName": "PD Example",
+  "profileLocation": { "lat": 48.1486, "lng": 17.1077 }
 }
 ```
+
+Notes:
+- `role` must be one of `AGRO`, `AGRO_PRO`, `BEEKEEPER`, `BEE_HOBBY`, `BEE_BEGINNER`, `GARDENER`, `GARDEN_NEW`.
+- `ico` is stored only for `AGRO` / `AGRO_PRO`, `cevz` only for the beekeeper roles, `lpisId` only for `AGRO` / `AGRO_PRO`, and `companyName` for `AGRO` / `AGRO_PRO` / `BEEKEEPER`.
+- `profileLocation` is optional and used by community roles to anchor the account on the map.
 
 Success response:
 ```json
 {
   "success": true,
+  "token": "jwt-token",
   "user": {
-    "id": 1,
+    "id": "uuid",
     "email": "user@example.com",
-    "accountType": "registered_entity",
+    "role": "AGRO_PRO",
+    "lpisId": "LPIS-NR-4401",
+    "companyName": "PD Example",
+    "profileLocation": { "lat": 48.1486, "lng": 17.1077 },
     "isVerified": false
   }
 }
@@ -100,12 +115,29 @@ Response:
 ```
 
 ### PATCH /api/users/me
-Updates the user profile.
+Updates the user profile. Requires authentication.
 
 Example body:
 ```json
 {
-  "email": "new@example.com"
+  "name": "PD Example",
+  "phone": "+421 900 000 000",
+  "address": "Obec 1, 900 00 Obec",
+  "lpisId": "LPIS-NR-4401",
+  "companyName": "PD Example",
+  "profileLocation": { "lat": 48.1486, "lng": 17.1077 }
+}
+```
+
+Response: the updated user object in the same shape as registration.
+
+### DELETE /api/users/me
+Deletes the current user's account. Requires authentication.
+
+Response:
+```json
+{
+  "success": true
 }
 ```
 
@@ -249,7 +281,38 @@ Response:
 ```
 
 ### GET /api/registry/lpis
-Returns LPIS parcel listings relevant to the user or selected scope.
+Returns LPIS parcel listings relevant to the authenticated user. Requires authentication.
+
+Query parameters:
+- `lpisId` (optional): LPIS farm/block identifier, 3–64 characters (letters, digits, `-`, `_`). Filters results by identifier prefix.
+
+Behavior:
+- Always returns parcels saved by the current user (source `user_parcels`).
+- When the `LPIS_API_URL` environment variable is configured and `lpisId` is provided, the server additionally queries the external LPIS source (`GET {LPIS_API_URL}?lpisId=<id>`, expecting a JSON array or `{ "parcels": [...] }`), normalizes the records, and merges them into the response.
+
+Response:
+```json
+{
+  "success": true,
+  "source": "local | lpis-api",
+  "parcels": [
+    {
+      "externalRegisterId": "LPIS-NR-4401",
+      "areaHa": 64.82,
+      "crop": "Repka olejná",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[17.9, 48.4], [17.99, 48.4], [17.99, 48.41], [17.9, 48.4]]]
+      }
+    }
+  ]
+}
+```
+
+Error responses:
+- `400 VALIDATION_ERROR` — invalid `lpisId` format
+- `502 LPIS_SOURCE_ERROR` — external LPIS source returned an error or unexpected payload
+- `504 LPIS_TIMEOUT` — external LPIS source did not respond within 5 seconds
 
 ## 7. Admin endpoints
 

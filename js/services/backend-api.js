@@ -1,9 +1,36 @@
 const TOKEN_KEY = 'agrogis_api_token_v1';
 
+function getStorage() {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readToken() {
+  const storage = getStorage();
+  return storage ? storage.getItem(TOKEN_KEY) : null;
+}
+
+function writeToken(token) {
+  const storage = getStorage();
+  if (token && storage) storage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken() {
+  const storage = getStorage();
+  if (storage) storage.removeItem(TOKEN_KEY);
+}
+
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});
-  headers.set('Content-Type', 'application/json');
-  const token = localStorage.getItem(TOKEN_KEY);
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (options.body !== undefined && options.body !== null && !isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const token = readToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
   let response;
@@ -14,12 +41,21 @@ async function request(path, options = {}) {
     throw error;
   }
 
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = {};
+  let payload = {};
+  if (response.status !== 204) {
+    const text = await response.text();
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (cause) {
+        const error = new Error(`Invalid JSON response from API (HTTP ${response.status})`, { cause });
+        error.status = response.status;
+        error.code = 'INVALID_RESPONSE';
+        throw error;
+      }
+    }
   }
+
   if (!response.ok) {
     const error = new Error(payload.details || payload.error || `HTTP ${response.status}`);
     error.status = response.status;
@@ -30,7 +66,7 @@ async function request(path, options = {}) {
 }
 
 function persistSession(payload) {
-  if (payload?.token) localStorage.setItem(TOKEN_KEY, payload.token);
+  if (payload?.token) writeToken(payload.token);
   return payload?.user || null;
 }
 
@@ -45,13 +81,24 @@ export const backendApi = {
     try {
       await request('/auth/logout', { method: 'POST' });
     } finally {
-      localStorage.removeItem(TOKEN_KEY);
+      clearToken();
     }
   },
   async getCurrentUser() {
-    if (!localStorage.getItem(TOKEN_KEY)) return null;
+    if (!readToken()) return null;
     const result = await request('/users/me');
     return result.user || null;
+  },
+  async updateCurrentUser(payload) {
+    const result = await request('/users/me', { method: 'PATCH', body: JSON.stringify(payload) });
+    return result.user || null;
+  },
+  async deleteCurrentUser() {
+    try {
+      return await request('/users/me', { method: 'DELETE' });
+    } finally {
+      clearToken();
+    }
   },
   async verifyEntity(ico) {
     const result = await request('/registry/verify-entity', { method: 'POST', body: JSON.stringify({ ico }) });
@@ -60,6 +107,11 @@ export const backendApi = {
   async searchEntities(query) {
     const result = await request(`/registry/entities?q=${encodeURIComponent(query)}`);
     return result.entities || [];
+  },
+  async getLpisParcels(lpisId) {
+    const suffix = lpisId ? `?lpisId=${encodeURIComponent(lpisId)}` : '';
+    const result = await request(`/registry/lpis${suffix}`);
+    return result.parcels || [];
   },
   async saveParcel(parcel) {
     return request('/parcels/save', { method: 'POST', body: JSON.stringify(parcel) });
