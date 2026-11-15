@@ -1769,12 +1769,26 @@ function closeSprayBook() {
   $('spray-book-modal')?.classList.add('hidden');
 }
 
+function spraySafetyText(value) {
+  if (value === 'safe') return 'bezpečný pre včely';
+  if (value === 'caution') return 'opatrnosť';
+  if (value === 'risk') return 'riziko pre včely';
+  return value ? String(value) : 'neuvedené';
+}
+
+function sprayWindowText(value) {
+  if (value === 'evening') return 'večerné okno';
+  if (value === 'morning') return 'ranné okno';
+  if (value === 'day') return 'denné okno';
+  return value ? String(value) : 'neuvedené';
+}
+
 function renderSprayBookList() {
   const host = $('spray-book-list');
   if (!host) return;
   const rows = readJsonList(SPRAY_BOOK_KEY);
   host.innerHTML = rows.length
-    ? rows.map((row) => `<div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2"><b>${escapeHtml(row.product)}</b> · ${escapeHtml(row.parcel)} · ${escapeHtml(String(row.areaHa))} ha<br>${escapeHtml(row.when)} · vietor ${escapeHtml(String(row.windMs))} m/s · ${escapeHtml(String(row.tempC))} °C</div>`).join('')
+    ? rows.map((row) => `<div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2"><b>${escapeHtml(row.product)}</b> · ${escapeHtml(row.parcel)} · ${escapeHtml(String(row.areaHa))} ha<br>${escapeHtml(row.when)} · vietor ${escapeHtml(String(row.windMs))} m/s · ${escapeHtml(String(row.tempC))} °C · ${escapeHtml(spraySafetyText(row.toxicity))} · ${escapeHtml(sprayWindowText(row.sprayWindow))}</div>`).join('')
     : '<p class="text-slate-500">Kniha je zatiaľ prázdna.</p>';
 }
 
@@ -1807,6 +1821,7 @@ function saveSprayBookEntry(event) {
     sprayWindow.value = 'evening';
   }
   window.syncSprayChoicePills?.();
+  window.refreshSprayCollisionRadar?.();
 }
 
 function varroaTone(drop) {
@@ -1869,8 +1884,8 @@ async function exportSprayBook(kind) {
     return;
   }
   if (kind === 'csv') {
-    const header = 'datum;parcela;vymera_ha;pripravok;vietor_m_s;teplota_c';
-    const body = rows.map((row) => [row.when, row.parcel, String(row.areaHa).replace('.', ','), row.product, String(row.windMs).replace('.', ','), String(row.tempC).replace('.', ',')].join(';')).join('\n');
+    const header = 'datum;parcela;vymera_ha;pripravok;vietor_m_s;teplota_c;toxicita;okno';
+    const body = rows.map((row) => [row.when, row.parcel, String(row.areaHa).replace('.', ','), row.product, String(row.windMs).replace('.', ','), String(row.tempC).replace('.', ','), row.toxicity || '', row.sprayWindow || ''].join(';')).join('\n');
     downloadBlob(new Blob(['\uFEFF' + header + '\n' + body], { type: 'text/csv;charset=utf-8' }), 'kniha-postrekov.csv');
     showToast('CSV so slovenskou diakritikou je pripravené', 'success');
     return;
@@ -1881,7 +1896,7 @@ async function exportSprayBook(kind) {
     showToast('Formátovaný zošit je pripravený', 'success');
     return;
   }
-  const text = rows.map((row) => `${row.when} | ${row.parcel} | ${row.areaHa} ha | ${row.product} | vietor ${row.windMs} m/s | ${row.tempC} °C`).join('\n');
+  const text = rows.map((row) => `${row.when} | ${row.parcel} | ${row.areaHa} ha | ${row.product} | vietor ${row.windMs} m/s | ${row.tempC} °C | ${row.toxicity || ''} | ${row.sprayWindow || ''}`).join('\n');
   const hash = await sha256Hex(text);
   const pdf = buildLandscapePdf(text, hash);
   downloadBlob(new Blob([pdf], { type: 'application/pdf' }), 'kniha-postrekov.pdf');
@@ -1890,12 +1905,12 @@ async function exportSprayBook(kind) {
 
 function spreadsheetXml(rows) {
   const cell = (value) => `<Cell><Data ss:Type="String">${escapeHtml(String(value))}</Data></Cell>`;
-  const lines = rows.map((row) => `<Row>${cell(row.when)}${cell(row.parcel)}${cell(row.areaHa)}${cell(row.product)}${cell(row.windMs)}${cell(row.tempC)}</Row>`).join('');
+  const lines = rows.map((row) => `<Row>${cell(row.when)}${cell(row.parcel)}${cell(row.areaHa)}${cell(row.product)}${cell(row.windMs)}${cell(row.tempC)}${cell(row.toxicity || '')}${cell(row.sprayWindow || '')}</Row>`).join('');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Worksheet ss:Name="Kniha postrekov"><Table>
-<Row>${cell('Dátum')}${cell('Parcela')}${cell('Výmera ha')}${cell('Prípravok')}${cell('Vietor m/s')}${cell('Teplota °C')}</Row>
+<Row>${cell('Dátum')}${cell('Parcela')}${cell('Výmera ha')}${cell('Prípravok')}${cell('Vietor m/s')}${cell('Teplota °C')}${cell('Toxicita')}${cell('Okno')}</Row>
 ${lines}
 </Table></Worksheet></Workbook>`;
 }

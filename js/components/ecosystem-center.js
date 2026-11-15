@@ -1,5 +1,6 @@
 import { store } from '../core/state-store.js';
 import { AgroApiService } from '../services/api.js';
+import { escapeHtml } from './saas-shell.js';
 
 const VARROA_KEY = 'vcely_varroa_v1';
 const SPRAY_KEY = 'vcely_spray_book_v1';
@@ -99,8 +100,12 @@ function paintNectar(state) {
     const indexEl = document.getElementById('eco-nectar-index');
     if (!host) return;
     const here = mapCenter();
-    const near = parcelsNear(here.lat, here.lng);
-    const source = near.length ? near : (state.lpisParcels || []);
+    const source = parcelsNear(here.lat, here.lng);
+    if (!source.length) {
+        host.innerHTML = '<p class="eco-widget-note">V 3 km nie sú evidované LPIS bloky.</p>';
+        if (indexEl) indexEl.textContent = 'Aktivita včiel: bez dát · 0 blokov v dosahu';
+        return;
+    }
     const totals = new Map();
     let area = 0;
     source.forEach((parcel) => {
@@ -111,14 +116,13 @@ function paintNectar(state) {
     });
     const rows = [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
     const max = rows[0]?.[1] || 1;
-    host.innerHTML = rows.length
-        ? rows.map(([name, ha]) => {
-            const pct = Math.round((ha / (area || ha)) * 100);
-            return `<div class="eco-bar-row"><b>${name}</b><div class="eco-bar-track"><i style="width:${Math.max(8, Math.round((ha / max) * 100))}%"></i></div><span>${pct}%</span></div>`;
-        }).join('')
-        : '<p class="eco-widget-note">V 3 km nie sú evidované LPIS bloky.</p>';
+    host.innerHTML = rows.map(([name, ha]) => {
+        const pct = Math.round((ha / (area || ha)) * 100);
+        const width = Math.max(8, Math.round((ha / max) * 100));
+        return `<div class="eco-bar-row"><b>${escapeHtml(name)}</b><div class="eco-bar-track"><i style="width:${width}%"></i></div><span>${pct}%</span></div>`;
+    }).join('');
     const beeCrops = rows.filter(([name]) => /Repka|Agát|Lipa|Sad|Slnečnica/.test(name));
-    const strength = Math.min(10, Math.round((beeCrops.reduce((sum, row) => sum + row[1], 0) / Math.max(area, 1)) * 10 + (near.length ? 2 : 0)));
+    const strength = Math.min(10, Math.round((beeCrops.reduce((sum, row) => sum + row[1], 0) / Math.max(area, 1)) * 10 + 2));
     const label = strength >= 7 ? 'Vysoká' : strength >= 4 ? 'Stredná' : 'Nízka';
     if (indexEl) indexEl.textContent = `Aktivita včiel: ${label} (${strength.toFixed(1)}) · ${source.length} blokov v dosahu`;
 }
@@ -143,7 +147,7 @@ function paintHealth(state) {
     const tone = drop > 10 ? 'is-risk' : drop > 3 ? 'is-caution' : '';
     const label = drop > 10 ? 'Kritický spad' : drop > 3 ? 'Zvýšený spad' : 'V poriadku';
     varroaEl.className = `eco-shield-line ${tone}`;
-    varroaEl.innerHTML = `Varroa check: <strong>${label}</strong> · ${latest.site || 'stanovište'} ${drop}/24 h`;
+    varroaEl.innerHTML = `Varroa check: <strong>${label}</strong> · ${escapeHtml(latest.site || 'stanovište')} ${escapeHtml(String(drop))}/24 h`;
 }
 
 function paintWeatherChart(hours) {
@@ -354,12 +358,15 @@ function fillSprayParcels() {
     const state = store.getState();
     const options = [];
     (state.lpisParcels || []).forEach((parcel) => {
-        options.push(`<option value="${parcel.id}">${parcel.id} · ${shortCrop(parcel.crop)} · ${Number(parcel.areaHa || 0).toFixed(1)} ha</option>`);
+        const id = escapeHtml(parcel.id);
+        const crop = escapeHtml(shortCrop(parcel.crop));
+        options.push(`<option value="${id}">${id} · ${crop} · ${Number(parcel.areaHa || 0).toFixed(1)} ha</option>`);
     });
     const active = state.activeCadastreParcel;
     if (active?.parcelNumber) {
-        const label = `KN-${active.register} ${active.parcelNumber}`;
-        options.unshift(`<option value="${label}">${label} · ${active.kuName || 'kataster'}</option>`);
+        const label = escapeHtml(`KN-${active.register} ${active.parcelNumber}`);
+        const kuName = escapeHtml(active.kuName || 'kataster');
+        options.unshift(`<option value="${label}">${label} · ${kuName}</option>`);
     }
     if (!options.length) options.push('<option value="">Stred mapy</option>');
     pick.innerHTML = options.join('');
@@ -376,11 +383,11 @@ function paintSprayRadar() {
     const colonies = rows.reduce((sum, row) => sum + Number(row.hive.count || 0), 0);
     const sites = rows.length === 1 ? 'stanovište' : rows.length < 5 ? 'stanovištia' : 'stanovíšť';
     const list = rows.length
-        ? `<ul>${rows.map((row) => `<li>🐝 ${row.hive.name} (${row.hive.count} rodín) · ${(row.meters / 1000).toFixed(2)} km</li>`).join('')}</ul>`
+        ? `<ul>${rows.map((row) => `<li>🐝 ${escapeHtml(row.hive.name)} (${escapeHtml(String(row.hive.count))} rodín) · ${(row.meters / 1000).toFixed(2)} km</li>`).join('')}</ul>`
         : '<p class="eco-radar-ok">V okruhu 3 km nie je evidovaná včelnica.</p>';
     host.innerHTML = `
         <b>Automatický radar kolízií (3 km)</b>
-        <p class="${rows.length ? 'eco-radar-hot' : 'eco-radar-ok'}">Zasiahnuté včelnice v 3 km pásme: ${rows.length} ${sites} (${colonies} rodín) · ${point.label}</p>
+        <p class="${rows.length ? 'eco-radar-hot' : 'eco-radar-ok'}">Zasiahnuté včelnice v 3 km pásme: ${rows.length} ${sites} (${colonies} rodín) · ${escapeHtml(point.label)}</p>
         ${list}
     `;
     if (button) button.textContent = `Odoslať výstrahu včelárom (${rows.length})`;
@@ -453,6 +460,11 @@ function reflectChoice(rootId, attribute, hiddenId) {
 function syncSprayChoicePills() {
     reflectChoice('spray-window-picks', 'data-window', 'spray-window-value');
     reflectChoice('spray-toxicity', 'data-tox', 'spray-toxicity-value');
+}
+
+function refreshSprayCollisionRadar() {
+    syncSprayParcelFields();
+    paintSprayRadar();
 }
 
 function bindChoices(root, attribute, hiddenId) {
@@ -543,6 +555,7 @@ export function bindEcosystemCenter() {
     });
 
     window.syncSprayChoicePills = syncSprayChoicePills;
+    window.refreshSprayCollisionRadar = refreshSprayCollisionRadar;
     bindChoices('spray-window-picks', 'data-window', 'spray-window-value');
     bindChoices('spray-toxicity', 'data-tox', 'spray-toxicity-value');
     bindChoices('hive-site-picks', 'data-site', 'hive-site-type');

@@ -58,7 +58,7 @@ export function classifyOmniboxQuery(raw, filter = '') {
     return { kind: 'place', query: value };
 }
 
-function escapeHtml(value) {
+export function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
         '&': '&amp;',
         '<': '&lt;',
