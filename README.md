@@ -210,6 +210,15 @@ AGROGIS SLOVENSKO je navrhnutý ako geopriestorová platforma pre včelárov a p
 
 Tento dokument slúži ako základ pre ďalší vývoj, implementáciu, testovanie a nasadenie projektu v produkčnom prostredí.
 
+## Android aplikácia (PWA + Capacitor)
+
+Aplikácia je pripravená ako **profesionálna Android inštalácia**:
+
+1. **PWA** — v Chrome na Androide banner *Nainštalovať na Android* / *Pridať na plochu* (standalone, splash, spodná navigácia, offline shell).
+2. **Natívny APK** — Capacitor projekt v `android/` (`sk.vcely.ochrana`). Build: `npm run cap:sync` a potom `cd android && ./gradlew assembleDebug`, alebo GitHub Action `Build Android APK`.
+
+Detailný návod: [docs/android.md](docs/android.md).
+
 ## Nasadenie PWA a API
 
 Projekt obsahuje [Render Blueprint](render.yaml), ktorý vytvorí Node.js webovú službu a PostgreSQL 16 databázu s PostGIS. Webová služba obsluhuje frontend aj `/api` z rovnakej HTTPS adresy; pri štarte sa bezpečne a opakovane spustí databázová migrácia. Tajný JWT kľúč generuje Render a nie je uložený v repozitári.

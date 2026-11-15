@@ -2,3 +2,13 @@
 node_modules/
 test-results/
 playwright-report/
+www/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/captures/
+*.apk
+*.aab
+*.keystore
+*.jks

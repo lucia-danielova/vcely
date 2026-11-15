@@ -1,0 +1,42 @@
+{
+  "appId": "sk.vcely.ochrana",
+  "appName": "Včely a pôda",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "zbgisws.skgeodesy.sk",
+      "*.arcgisonline.com",
+      "*.tile.openstreetmap.org",
+      "*.opentopomap.org",
+      "cdn.tailwindcss.com",
+      "cdn.jsdelivr.net",
+      "unpkg.com",
+      "cdnjs.cloudflare.com",
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "*.onrender.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "backgroundColor": "#eaf3e2",
+      "showSpinner": false,
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP"
+    },
+    "StatusBar": {
+      "backgroundColor": "#047857",
+      "style": "LIGHT"
+    },
+    "Keyboard": {
+      "resize": "body"
+    }
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#eaf3e2",
+    "webContentsDebuggingEnabled": false
+  }
+}

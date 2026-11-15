@@ -1,12 +1,17 @@
 {
   "name": "vcely",
-  "version": "1.0.0",
-  "description": "",
+  "version": "2.0.0",
+  "description": "Včely a pôda — Android-installable PWA / Capacitor app for protecting bees and soil in Slovakia",
   "main": "service-worker.js",
   "scripts": {
     "start": "node server/index.js",
     "db:migrate": "node server/migrate.js",
-    "test": "node --test"
+    "test": "node --test",
+    "icons": "node scripts/generate-icons.js",
+    "prepare:www": "node scripts/prepare-www.js",
+    "cap:sync": "npm run icons && npm run prepare:www && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:build": "npm run cap:sync && cd android && ./gradlew assembleDebug"
   },
   "repository": {
     "type": "git",
@@ -21,9 +26,19 @@
   },
   "homepage": "https://github.com/lucia-danielova/vcely#readme",
   "devDependencies": {
-    "@playwright/test": "^1.65.0"
+    "@capacitor/cli": "^8.6.2",
+    "@playwright/test": "^1.65.0",
+    "sharp": "^0.35.5"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",

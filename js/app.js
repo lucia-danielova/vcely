@@ -2,6 +2,14 @@ import { store } from './core/state-store.js';
 import { AgroMapEngine } from './components/map-engine.js';
 import { backendApi } from './services/backend-api.js';
 import { AgroApiService } from './services/api.js';
+import { bindPwaInstallUi, watchServiceWorkerUpdates, initNativeCapacitorShell } from './services/pwa-install.js';
+import {
+  bindAndroidShell,
+  emitLandingChanged,
+  hideAppSplash,
+  applySafeAreaClasses,
+  setBottomNavActive
+} from './components/android-shell.js';
 
 const personaConfig = {
   BEE_PRO: {
@@ -285,6 +293,8 @@ function openLandingPortal() {
   overlay.scrollTop = 0;
   appState.landingVisible = true;
   relocateMapStage('landing-map-frame');
+  setBottomNavActive('home');
+  emitLandingChanged(true);
 }
 
 function closeLandingPortal() {
@@ -293,6 +303,8 @@ function closeLandingPortal() {
   overlay.classList.add('landing-hidden');
   appState.landingVisible = false;
   relocateMapStage('map-mount');
+  setBottomNavActive('map');
+  emitLandingChanged(false);
 }
 
 function selectUserPersona(personaKey) {
@@ -1924,15 +1936,43 @@ function initMapApp() {
   }
 }
 
-function registerAppServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('./service-worker.js').catch((error) => {
-    console.warn('[AGROGIS] Service worker registration failed:', error);
+function applyLaunchDeepLinks() {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get('view');
+  if (view === 'map') {
+    closeLandingPortal();
+    switchSidebarTab('layers');
+    return;
+  }
+  if (view === 'register') {
+    openAuthModal('register');
+  }
+}
+
+function bootAndroidExperience() {
+  applySafeAreaClasses();
+  bindPwaInstallUi();
+  watchServiceWorkerUpdates();
+  bindAndroidShell({
+    openLanding: openLandingPortal,
+    closeLanding: closeLandingPortal,
+    switchTab: (tab) => {
+      switchSidebarTab(tab);
+      const sidebar = $('left-sidebar');
+      if (sidebar && appState.sidebarCollapsed) toggleLeftSidebar();
+    },
+    openAuth: () => {
+      /* account tab already opens portal panel */
+    },
+    isLandingVisible: () => appState.landingVisible
   });
+  initNativeCapacitorShell();
+  applyLaunchDeepLinks();
+  window.setTimeout(hideAppSplash, 700);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  registerAppServiceWorker();
+  bootAndroidExperience();
   initUi();
   initMapApp();
   if (window.L && appMapEngine) {
