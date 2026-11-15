@@ -92,17 +92,10 @@ html, body {
 }
 
 .eco-landing-brand img {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.35rem;
-}
-
-.eco-landing-brand-mark {
-    font-family: var(--font-display);
-    font-size: 0.95rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: var(--eco-deep);
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 0.3rem;
+    opacity: 0.72;
 }
 
 .eco-landing-header-nav {
@@ -111,7 +104,7 @@ html, body {
     gap: 0.5rem;
 }
 
-/* ---- Hero: brand + copy + full-bleed map ---- */
+/* ---- Hero: mission title + copy + full-bleed map ---- */
 .landing-hero {
     display: grid;
     grid-template-columns: 1fr;
@@ -127,37 +120,27 @@ html, body {
     animation: landing-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.landing-brand {
-    margin: 0 0 0.85rem;
+.eco-hero-title {
+    margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(2.4rem, 7vw, 4.25rem);
+    font-size: clamp(2.15rem, 5.8vw, 3.75rem);
     font-weight: 800;
-    line-height: 0.95;
-    letter-spacing: -0.04em;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
     color: var(--eco-deep);
+    max-width: 14ch;
     position: relative;
+    animation: landing-rise 0.9s 0.08s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.landing-brand::after {
+.eco-hero-title::after {
     content: '';
     display: block;
     width: 0;
     height: 3px;
-    margin-top: 0.65rem;
+    margin-top: 0.75rem;
     background: var(--eco-brass);
     animation: landing-rule 1s 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.eco-hero-title {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: clamp(1.55rem, 3.8vw, 2.35rem);
-    font-weight: 650;
-    line-height: 1.18;
-    letter-spacing: -0.025em;
-    color: var(--eco-ink);
-    max-width: 18ch;
-    animation: landing-rise 0.9s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .eco-hero-title em {
@@ -166,13 +149,13 @@ html, body {
 }
 
 .eco-hero-sub {
-    margin: 1rem 0 0;
+    margin: 1.15rem 0 0;
     max-width: 34rem;
     font-size: clamp(0.95rem, 1.5vw, 1.05rem);
     line-height: 1.6;
     color: var(--eco-mute);
     font-weight: 500;
-    animation: landing-rise 0.9s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: landing-rise 0.9s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .landing-hero-cta {
@@ -181,7 +164,7 @@ html, body {
     align-items: center;
     gap: 0.65rem 0.85rem;
     margin-top: 1.5rem;
-    animation: landing-rise 0.9s 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: landing-rise 0.9s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .landing-hero-map {
@@ -587,11 +570,11 @@ html, body {
     .eco-hero-sub,
     .landing-hero-cta,
     .landing-hero-map,
-    .landing-brand::after {
+    .eco-hero-title::after {
         animation: none !important;
     }
 
-    .landing-brand::after {
+    .eco-hero-title::after {
         width: 3.5rem;
     }
 
