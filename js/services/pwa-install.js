@@ -91,7 +91,8 @@ function copyForMode(mode, platform) {
       status: mode === 'ready'
         ? 'Samostatné okno bez Edge/Chrome — na pracovnú plochu aj do ponuky Štart'
         : 'V Edge alebo Chrome: menu ⋯ → Aplikácie → Inštalovať túto lokalitu ako aplikáciu',
-      button: mode === 'ready' ? 'Inštalovať' : 'Zobraziť postup'
+      // When manual steps are already on screen, hide the primary CTA (no-op "Zobraziť postup").
+      button: mode === 'ready' ? 'Inštalovať' : ''
     };
   }
   if (platform === 'android') {
@@ -122,12 +123,24 @@ function showBanner(mode) {
 
   if (title) title.textContent = copy.title;
   if (status) status.textContent = copy.status;
-  if (installBtn) {
-    installBtn.hidden = mode === 'ios';
-    installBtn.textContent = copy.button;
-  }
+
+  const showWindowsSteps = platform === 'windows' && mode !== 'ready';
   if (iosHint) iosHint.hidden = mode !== 'ios';
-  if (windowsHint) windowsHint.hidden = !(platform === 'windows' && mode !== 'ready');
+  if (windowsHint) windowsHint.hidden = !showWindowsSteps;
+
+  if (installBtn) {
+    // iOS: no native prompt. Windows manual: steps already visible — hide redundant CTA.
+    const hidePrimary = mode === 'ios' || showWindowsSteps || !copy.button;
+    installBtn.hidden = hidePrimary;
+    if (copy.button) installBtn.textContent = copy.button;
+  }
+
+  if (showWindowsSteps && windowsHint) {
+    windowsHint.setAttribute('tabindex', '-1');
+    try {
+      windowsHint.focus({ preventScroll: false });
+    } catch {}
+  }
 }
 
 function hideBanner() {
@@ -154,6 +167,21 @@ async function promptInstall() {
     return false;
   }
   if (platform === 'windows') {
+    const { banner, windowsHint } = getBannerEls();
+    const stepsAlreadyVisible = banner
+      && !banner.hidden
+      && banner.dataset.mode === 'windows-manual'
+      && windowsHint
+      && !windowsHint.hidden;
+    if (stepsAlreadyVisible) {
+      windowsHint.setAttribute('tabindex', '-1');
+      try {
+        windowsHint.focus({ preventScroll: false });
+      } catch {}
+      windowsHint.classList.add('pwa-install-hint-pulse');
+      window.setTimeout(() => windowsHint.classList.remove('pwa-install-hint-pulse'), 900);
+      return false;
+    }
     showBanner('windows-manual');
     return false;
   }
