@@ -463,7 +463,12 @@ function syncSprayChoicePills() {
 }
 
 function refreshSprayCollisionRadar() {
-    syncSprayParcelFields();
+    const pick = document.getElementById('spray-parcel-pick');
+    const parcelInput = document.getElementById('spray-parcel');
+    const areaInput = document.getElementById('spray-area');
+    if (pick) pick.selectedIndex = -1;
+    if (parcelInput) parcelInput.value = '';
+    if (areaInput) areaInput.value = '';
     paintSprayRadar();
 }
 

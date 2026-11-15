@@ -1803,22 +1803,26 @@ function saveSprayBookEntry(event) {
     windMs: Number($('spray-wind')?.value || 0),
     tempC: Number($('spray-temp')?.value || 0),
     when: $('spray-when')?.value || '',
-    toxicity: $('spray-toxicity-value')?.value || 'safe',
-    sprayWindow: $('spray-window-value')?.value || 'evening'
+    toxicity: $('spray-toxicity-value')?.value || '',
+    sprayWindow: $('spray-window-value')?.value || ''
   });
   localStorage.setItem(SPRAY_BOOK_KEY, JSON.stringify(rows));
   renderSprayBookList();
   showToast('Záznam postreku je v knihe', 'success');
   event.target.reset();
+  const parcel = $('spray-parcel');
+  const area = $('spray-area');
   const toxicity = $('spray-toxicity-value');
   const sprayWindow = $('spray-window-value');
+  if (parcel) parcel.value = '';
+  if (area) area.value = '';
   if (toxicity) {
-    toxicity.defaultValue = 'safe';
-    toxicity.value = 'safe';
+    toxicity.defaultValue = '';
+    toxicity.value = '';
   }
   if (sprayWindow) {
-    sprayWindow.defaultValue = 'evening';
-    sprayWindow.value = 'evening';
+    sprayWindow.defaultValue = '';
+    sprayWindow.value = '';
   }
   window.syncSprayChoicePills?.();
   window.refreshSprayCollisionRadar?.();
