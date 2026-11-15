@@ -18,8 +18,8 @@
             }
         })();
     </script>
-    <title>Včely a pôda | Android aplikácia na ochranu prírody</title>
-    <meta name="description" content="Profesionálna mapa na ochranu včiel, pôdy a ekosystémov. Nainštalovateľná na Android ako samostatná aplikácia.">
+    <title>Ak nebudú včely, nebude nič. | Ochrana prírody a opeľovačov</title>
+    <meta name="description" content="Jedna živá mapa spája včelárov a pestovateľov. Nainštalovateľná na Android ako samostatná aplikácia.">
     <meta name="application-name" content="Včely a pôda">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,8 +27,7 @@
     <meta name="apple-mobile-web-app-title" content="Včely a pôda">
     <meta name="format-detection" content="telephone=no">
     <meta name="color-scheme" content="light">
-    <meta name="theme-color" content="#047857" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#047857" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#143525">
 
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
@@ -36,10 +35,10 @@
     <link rel="apple-touch-icon" href="./assets/icon-192.png">
     <link rel="apple-touch-startup-image" href="./assets/splash-narrow.png">
 
-    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <!-- Google Fonts: Bricolage Grotesque (display) · Manrope (UI) · JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650;12..96,800&family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -48,7 +47,8 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        sans: ['Manrope', 'sans-serif'],
+                        display: ['"Bricolage Grotesque"', 'sans-serif'],
                         mono: ['"JetBrains Mono"', 'monospace']
                     }
                 }
@@ -65,7 +65,7 @@
     <!-- Vlastný ekologický štýl -->
     <link rel="stylesheet" href="./css/style.css">
 </head>
-<body class="bg-[#f8faf7] text-slate-800 font-sans h-screen flex flex-col overflow-hidden select-none android-app-shell">
+<body class="bg-[#e8efe9] text-slate-800 font-sans h-screen flex flex-col overflow-hidden select-none android-app-shell">
 
     <!-- Natívny splash pri štarte (PWA / Android) -->
     <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Načítavam aplikáciu">
@@ -95,186 +95,127 @@
     </div>
 
     <!-- ==================================================================== -->
-    <!-- ÚVODNÁ ROZDELENÁ OBRAZOVKA 50 / 50 (VČELÁRI vs. POĽNOHOSPODÁRI)       -->
+    <!-- ÚVODNÁ OBRAZOVKA — brand + plnoplošná živá mapa                       -->
     <!-- ==================================================================== -->
     <div id="landing-portal-overlay" class="landing-screen fixed inset-0 z-50 flex flex-col overflow-y-auto transition-all duration-500">
 
-        <!-- Nenápadná značka aplikácie — vizuál má hovoriť sám za seba, nie názov -->
-        <header class="eco-landing-header flex items-center justify-between gap-3 px-5 py-3 sm:px-8 sm:py-4">
-            <div class="eco-landing-brand flex items-center gap-2.5" aria-label="Chránime našu prírodu">
-                <img src="./assets/agrogis-icon.svg" alt="" class="h-8 w-8 sm:h-9 sm:w-9">
-                <span>
-                    <span class="block text-[11px] font-bold tracking-wide text-emerald-900">Chránime našu prírodu • Obnovujeme ekosystémy</span>
-                    <span class="eco-landing-brand-tagline block text-[11px] text-emerald-800/80">Spoločná ochrana včiel, pôdy a prírody</span>
-                </span>
+        <header class="eco-landing-header">
+            <div class="eco-landing-brand" aria-hidden="true">
+                <img src="./assets/agrogis-icon.svg" alt="" width="28" height="28">
             </div>
-            <nav class="eco-landing-header-nav flex items-center gap-2" aria-label="Účet">
+            <nav class="eco-landing-header-nav" aria-label="Účet">
                 <button type="button" data-pwa-install class="landing-install-button" title="Nainštalovať aplikáciu">App</button>
-                <button onclick="openAuthModal('login')" class="landing-account-button">Prihlásiť sa</button>
-                <button onclick="openAuthModal('register')" class="landing-register-button">Zaregistrovať sa</button>
+                <button type="button" onclick="openAuthModal('login')" class="landing-account-button">Prihlásiť sa</button>
+                <button type="button" onclick="openAuthModal('register')" class="landing-register-button">Zaregistrovať sa</button>
             </nav>
         </header>
 
-        <main class="landing-content mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-14 pt-2 sm:px-8">
+        <main class="landing-content">
 
-            <!-- HERO: hlavné posolstvo projektu (ochrana prírody a včiel), nie značka -->
-            <section class="mx-auto mb-8 max-w-3xl text-center sm:mb-10">
-                <p class="eco-kicker">Chránime našu prírodu • Obnovujeme ekosystémy</p>
-                <h1 class="eco-hero-title">Ak nebudú <span class="eco-hero-highlight">včely</span>,<br class="hidden sm:block"> nebude nič.</h1>
-                <p class="eco-hero-sub">
-                    Včely a ostatné opeľovače udržujú pri živote väčšinu rastlín, polí aj záhrad na Slovensku.
-                    Chránime ich životný priestor, pomáhame obnovovať biodiverzitu a na jednej mape prepájame
-                    včelárov s pestovateľmi.
-                </p>
-                <div class="eco-trust-strip" role="list" aria-label="Zdroje údajov">
-                    <span role="listitem" class="eco-trust-chip">📍 ÚGKK SR · ZBGIS kataster</span>
-                    <span role="listitem" class="eco-trust-chip">🌾 LPIS pôdne bloky</span>
-                    <span role="listitem" class="eco-trust-chip">🐝 Register CEVZ</span>
+            <!-- HERO: misijný titul + CTA + plnoplošná mapa (názov produktu nie je dominantný) -->
+            <section class="landing-hero" aria-label="Úvod">
+                <div class="landing-hero-copy">
+                    <h1 class="eco-hero-title">Ak nebudú <em>včely</em>, nebude nič.</h1>
+                    <p class="eco-hero-sub">Jedna živá mapa spája včelárov a pestovateľov — chránime životný priestor opeľovačov a obnovujeme biodiverzitu na Slovensku.</p>
+                    <div class="landing-hero-cta">
+                        <button type="button" onclick="openAuthModal('register')" class="landing-cta-btn landing-cta-btn-register">Zaregistrovať sa</button>
+                        <button type="button" onclick="openAuthModal('login')" class="landing-cta-btn landing-cta-btn-login">Prihlásiť sa</button>
+                        <button type="button" onclick="closeLandingPortal()" class="landing-map-link">Otvoriť mapu</button>
+                        <button type="button" data-pwa-install class="landing-cta-btn landing-cta-btn-install">Nainštalovať app</button>
+                    </div>
+                </div>
+
+                <div class="landing-hero-map" aria-label="Interaktívna mapa Slovenska">
+                    <div id="landing-map-frame" class="landing-map-frame">
+                        <div id="map-stage" class="relative w-full h-full">
+                            <div id="interactive-nature-map" class="absolute inset-0 w-full h-full z-10" role="application" aria-label="Interaktívna mapa krajiny, parciel a včelích stanovišť" tabindex="0"></div>
+
+                            <div class="landing-map-pillbar absolute top-3 left-3 z-20 flex items-center gap-1" role="toolbar" aria-label="Podklad mapy">
+                                <button id="float-base-ortho" onclick="setBaseMap('ortho')" class="float-map-pill active-float-pill" type="button">Letecká</button>
+                                <button id="float-base-zbgis" onclick="setBaseMap('zbgis')" class="float-map-pill" type="button">Svetlá</button>
+                                <button id="float-base-terrain" onclick="setBaseMap('terrain')" class="float-map-pill hidden sm:inline-flex" type="button">Príroda</button>
+                                <button id="float-base-dark" onclick="setBaseMap('dark')" class="float-map-pill hidden md:inline-flex" type="button">Tmavá</button>
+                                <button id="float-kataster-btn" onclick="quickToggleKatasterButton()" class="float-map-pill float-map-pill-kataster" type="button">Kataster</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <!-- MAPA: ústredný, živý a interaktívny prvok úvodnej obrazovky -->
-            <section class="nature-stage" aria-label="Interaktívna mapa Slovenska">
-                <aside class="nature-side nature-side-soil">
-                    <p class="nature-side-kicker">Pôda a rastliny</p>
-                    <h2>Starám sa o pôdu a rastliny</h2>
-                    <p>Polia, záhrady a lúky, ktoré kŕmia krajinu. Tu vidíte, kde sa hospodári a kde sa príroda vracia.</p>
-                </aside>
-                <div id="landing-map-frame" class="landing-map-frame">
-                    <!-- #map-stage (skutočná Leaflet/ZBGIS mapa) je tu umiestnená natívne a presúva sa do appky po vstupe -->
-                    <div id="map-stage" class="relative w-full h-full">
-                        <div id="interactive-nature-map" class="absolute inset-0 w-full h-full z-10" role="application" aria-label="Interaktívna mapa krajiny, parciel a včelích stanovišť" tabindex="0"></div>
+            <!-- POD HERO: dve komunity a cesty registrácie -->
+            <section class="landing-mission" aria-label="Dve komunity">
+                <div class="landing-mission-intro">
+                    <h2>Jedna mapa. Dve komunity.</h2>
+                    <p>Vyberte profil — otvorí sa registrácia s predvybranou cestou.</p>
+                </div>
 
-                        <!-- Plávajúci prepínač podkladových máp + kataster (súčasť mapy, presúva sa spolu s ňou) -->
-                        <div class="landing-map-pillbar absolute top-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-1 bg-white/95 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-stone-300">
-                            <button id="float-base-ortho" onclick="setBaseMap('ortho')" class="float-map-pill active-float-pill px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
-                                <span>🛰️</span>
-                                <span>Letecká mapa</span>
+                <div class="profile-groups" aria-label="Používateľské profily">
+                    <div class="profile-group profile-group-bee">
+                        <div class="profile-group-header">
+                            <h2>Včely a opeľovače</h2>
+                            <p>Stanovištia a 3&nbsp;km ochranné pásmo. Pri postreku v blízkosti vás mapa upozorní včas.</p>
+                        </div>
+                        <div class="profile-card-grid">
+                            <button type="button" id="vcelar-profi" class="profile-card" onclick="openProfileRegistration('BEEKEEPER')">
+                                <span class="profile-card-text">
+                                    <span class="profile-card-title">Profesionálny včelár</span>
+                                    <span class="profile-card-desc">Registrované chovy v CEVZ a kočovné vozy</span>
+                                </span>
+                                <span class="profile-card-arrow" aria-hidden="true">→</span>
                             </button>
-                            <button id="float-base-zbgis" onclick="setBaseMap('zbgis')" class="float-map-pill px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-stone-100 transition flex items-center gap-1.5">
-                                <span>🗺️</span>
-                                <span>Svetlá mapa</span>
+                            <button type="button" id="vcelar-hobby" class="profile-card" onclick="openProfileRegistration('BEE_HOBBY')">
+                                <span class="profile-card-text">
+                                    <span class="profile-card-title">Hobby včelár</span>
+                                    <span class="profile-card-desc">Drobní chovatelia a záhradné úle</span>
+                                </span>
+                                <span class="profile-card-arrow" aria-hidden="true">→</span>
                             </button>
-                            <button id="float-base-terrain" onclick="setBaseMap('terrain')" class="float-map-pill px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-stone-100 transition flex items-center gap-1.5 hidden sm:flex">
-                                <span>⛰️</span>
-                                <span>Príroda</span>
-                            </button>
-                            <button id="float-base-dark" onclick="setBaseMap('dark')" class="float-map-pill px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-stone-100 transition flex items-center gap-1.5 hidden md:flex">
-                                <span>🌑</span>
-                                <span>Tmavá</span>
-                            </button>
-                            <div class="h-5 w-[1px] bg-stone-300 mx-1"></div>
-                            <button id="float-kataster-btn" onclick="quickToggleKatasterButton()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 transition flex items-center gap-1.5">
-                                <span>📐</span>
-                                <span>Kataster C-KN</span>
+                            <button type="button" id="vcelar-zaujemca" class="profile-card" onclick="openProfileRegistration('BEE_BEGINNER')">
+                                <span class="profile-card-text">
+                                    <span class="profile-card-title">Začiatočník / Záujemca</span>
+                                    <span class="profile-card-desc">Plánuje začať včeláriť</span>
+                                </span>
+                                <span class="profile-card-arrow" aria-hidden="true">→</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Odznak potvrdzujúci, že ide o skutočnú živú mapu s reálnymi dátami -->
-                    <div class="landing-map-live-badge absolute bottom-3.5 left-3.5 z-20 flex items-center gap-2">
-                        <span class="landing-live-dot" aria-hidden="true"></span>
-                        <span>Živá mapa · reálne dáta ZBGIS</span>
-                    </div>
-                </div>
-                <aside class="nature-side nature-side-bee">
-                    <p class="nature-side-kicker">Včely a opeľovače</p>
-                    <h2>Chránim včely a opeľovače</h2>
-                    <p>Stanovištia a 3 km ochranné pásmo. Ak sa blízko chystá postrek, včelár sa to dozvie včas.</p>
-                </aside>
-            </section>
-            <div class="mt-3 flex flex-col items-center gap-1.5 text-center sm:flex-row sm:justify-between sm:text-left">
-                <p class="landing-map-caption">
-                    Mapa je v tom istom rámci ako štátny ZBGIS: ortofoto, kataster C-KN a E-KN, pôdne bloky a súradnice S-JTSK. Včelíny v náhľade sú ukážkové stanovištia, kým sa nenapojí živá evidencia.
-                </p>
-                <button onclick="closeLandingPortal()" class="landing-map-link shrink-0">Otvoriť pracovnú mapu →</button>
-            </div>
-
-            <!-- SPOJOVACIA MYŠLIENKA MEDZI MAPOU A PROFILMI -->
-            <div class="eco-connector">
-                <span class="eco-connector-line" aria-hidden="true"></span>
-                <p>Jedna mapa. Jeden ekosystém.<span>Dve komunity, ktoré ho spoločne chránia.</span></p>
-                <span class="eco-connector-line" aria-hidden="true"></span>
-            </div>
-
-            <!-- PROFILY: vizuálna nápoveda, aké profily si možno zvoliť pri registrácii -->
-            <section class="profile-groups" aria-label="Používateľské profily">
-                <div class="profile-group profile-group-bee">
-                    <div class="profile-group-header">
-                        <span class="profile-group-icon" aria-hidden="true">🐝</span>
-                        <h2>Včely a opeľovače</h2>
-                    </div>
-                    <div class="profile-card-grid">
-                        <button type="button" id="vcelar-profi" class="profile-card" onclick="openProfileRegistration('BEEKEEPER')">
-                            <span class="profile-card-icon profile-card-icon-bee" aria-hidden="true">🐝</span>
-                            <span class="profile-card-text">
-                                <span class="profile-card-title">Profesionálny včelár</span>
-                                <span class="profile-card-desc">Registrované chovy v CEVZ a kočovné vozy</span>
-                            </span>
-                        </button>
-                        <button type="button" id="vcelar-hobby" class="profile-card" onclick="openProfileRegistration('BEE_HOBBY')">
-                            <span class="profile-card-icon profile-card-icon-bee" aria-hidden="true">🍯</span>
-                            <span class="profile-card-text">
-                                <span class="profile-card-title">Hobby včelár</span>
-                                <span class="profile-card-desc">Drobní chovatelia a záhradné úle</span>
-                            </span>
-                        </button>
-                        <button type="button" id="vcelar-zaujemca" class="profile-card" onclick="openProfileRegistration('BEE_BEGINNER')">
-                            <span class="profile-card-icon profile-card-icon-bee" aria-hidden="true">🌼</span>
-                            <span class="profile-card-text">
-                                <span class="profile-card-title">Začiatočník / Záujemca o včely</span>
-                                <span class="profile-card-desc">Plánuje začať včeláriť</span>
-                            </span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="profile-group profile-group-agro">
-                    <div class="profile-group-header">
-                        <span class="profile-group-icon" aria-hidden="true">🌾</span>
-                        <h2>Pôda, farmy a záhrady</h2>
-                    </div>
-                    <div class="profile-card-grid">
-                        <button type="button" id="farmar-profi" class="profile-card" onclick="openProfileRegistration('AGRO_PRO')">
-                            <span class="profile-card-icon profile-card-icon-agro" aria-hidden="true">🚜</span>
-                            <span class="profile-card-text">
-                                <span class="profile-card-title">Profesionálny farmár / Poľnohospodár</span>
-                                <span class="profile-card-desc">Družstvá, s.r.o., a.s., SHR a obhospodarovatelia pôdnych blokov</span>
-                            </span>
-                        </button>
-                        <button type="button" id="zahradkar-hobby" class="profile-card" onclick="openProfileRegistration('GARDENER')">
-                            <span class="profile-card-icon profile-card-icon-agro" aria-hidden="true">🌱</span>
-                            <span class="profile-card-text">
-                                <span class="profile-card-title">Hobby záhradkár / Sadovník</span>
-                                <span class="profile-card-desc">Rodinné záhrady, sady a vinohrady</span>
-                            </span>
-                        </button>
-                        <button type="button" id="zahradkar-zaujemca" class="profile-card" onclick="openProfileRegistration('GARDEN_NEW')">
-                            <span class="profile-card-icon profile-card-icon-agro" aria-hidden="true">🪴</span>
-                            <span class="profile-card-text">
-                                <span class="profile-card-title">Budúci pestovateľ / Komunita</span>
-                                <span class="profile-card-desc">Komunitné záhrady, lúky a biopásy</span>
-                            </span>
-                        </button>
+                    <div class="profile-group profile-group-agro">
+                        <div class="profile-group-header">
+                            <h2>Pôda, farmy a záhrady</h2>
+                            <p>Polia, záhrady a lúky — vidíte, kde sa hospodári a kde sa príroda vracia.</p>
+                        </div>
+                        <div class="profile-card-grid">
+                            <button type="button" id="farmar-profi" class="profile-card" onclick="openProfileRegistration('AGRO_PRO')">
+                                <span class="profile-card-text">
+                                    <span class="profile-card-title">Profesionálny farmár</span>
+                                    <span class="profile-card-desc">Družstvá, s.r.o., a.s., SHR a pôdne bloky</span>
+                                </span>
+                                <span class="profile-card-arrow" aria-hidden="true">→</span>
+                            </button>
+                            <button type="button" id="zahradkar-hobby" class="profile-card" onclick="openProfileRegistration('GARDENER')">
+                                <span class="profile-card-text">
+                                    <span class="profile-card-title">Hobby záhradkár</span>
+                                    <span class="profile-card-desc">Rodinné záhrady, sady a vinohrady</span>
+                                </span>
+                                <span class="profile-card-arrow" aria-hidden="true">→</span>
+                            </button>
+                            <button type="button" id="zahradkar-zaujemca" class="profile-card" onclick="openProfileRegistration('GARDEN_NEW')">
+                                <span class="profile-card-text">
+                                    <span class="profile-card-title">Budúci pestovateľ</span>
+                                    <span class="profile-card-desc">Komunitné záhrady, lúky a biopásy</span>
+                                </span>
+                                <span class="profile-card-arrow" aria-hidden="true">→</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <section class="landing-cta-band cta-action-banner" aria-label="Prihlásenie a registrácia">
-                <p class="landing-cta-lead">Vstup do ekosystému</p>
-                <div class="landing-cta-buttons">
-                    <button onclick="openAuthModal('login')" class="landing-cta-btn landing-cta-btn-login">
-                        <span class="landing-cta-icon" aria-hidden="true">🔑</span> Prihlásiť sa
-                    </button>
-                    <button onclick="openAuthModal('register')" class="landing-cta-btn landing-cta-btn-register">
-                        <span class="landing-cta-icon" aria-hidden="true">🌱</span> Zaregistrovať sa / Vstúpiť do ekosystému
-                    </button>
-                    <button type="button" data-pwa-install class="landing-cta-btn landing-cta-btn-install">
-                        <span class="landing-cta-icon" aria-hidden="true">📱</span> Nainštalovať Android app
-                    </button>
-                </div>
-                <p class="landing-cta-footnote">Prihlásenie je pre tých, čo sa vracajú. Registrácia je pre nový profil. App funguje aj offline.</p>
-            </section>
+            <footer class="landing-footer">
+                <p class="landing-map-caption">Údaje z ÚGKK SR · ZBGIS, LPIS pôdnych blokov a registra CEVZ. Ortofoto, kataster C-KN / E-KN, súradnice S-JTSK.</p>
+                <p class="landing-cta-footnote">Bez záväzkov · zadarmo pre včelárov aj pestovateľov</p>
+            </footer>
         </main>
     </div>
 
