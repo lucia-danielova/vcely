@@ -85,10 +85,10 @@ body.saas-app.map-app-open #saas-layer-bar,
 body.saas-app.map-app-open #analysis-result-panel,
 body.saas-app.map-app-open #geo-coord-pill,
 body.saas-app.map-app-open #map-tool-rail {
-    background: rgba(22, 34, 24, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 16px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    background: rgba(16, 26, 19, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     color: #e8f2eb;
 }
 
@@ -107,8 +107,8 @@ body.saas-app.map-app-open #left-sidebar {
     pointer-events: auto;
     overflow: hidden;
     padding: 0;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 body.saas-app.map-app-open #left-sidebar.w-0,
@@ -267,10 +267,10 @@ body.saas-app.map-app-open #app-workspace.mobile-sidebar-collapsed #left-sidebar
     max-height: 180px;
     overflow: auto;
     padding: 8px;
-    border-radius: 14px;
-    background: rgba(16, 26, 18, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    border-radius: 20px;
+    background: rgba(16, 26, 19, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 .saas-omni-filters {
@@ -481,7 +481,7 @@ body.saas-app.map-app-open #left-sidebar .border-stone-200,
 body.saas-app.map-app-open #left-sidebar .border-stone-300,
 body.saas-app.map-app-open #analysis-result-panel .border-stone-200,
 body.saas-app.map-app-open #analysis-result-panel .border-emerald-500\/40 {
-    border-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-track {
@@ -545,11 +545,11 @@ body.saas-app.map-app-open #weather-safety-wrap {
     border: 0;
     border-radius: 999px;
     padding: 8px 10px 8px 12px;
-    background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    background: rgba(16, 26, 19, 0.90);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     color: #f8faf8;
     cursor: pointer;
     text-align: left;
@@ -617,12 +617,12 @@ body.saas-app.map-app-open #weather-safety-wrap {
 #weather-condition-card {
     width: min(320px, 100%);
     padding: 12px 14px;
-    border-radius: 16px;
-    background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    border-radius: 20px;
+    background: rgba(16, 26, 19, 0.90);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     color: #e8f2eb;
 }
 
@@ -667,8 +667,8 @@ body.saas-app.map-app-open #active-mode-badge {
     gap: 6px;
     padding: 6px;
     pointer-events: auto;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 #saas-layer-bar button {
@@ -740,8 +740,8 @@ body.saas-app.map-app-open #analysis-result-panel {
     opacity: 0;
     transform: translateY(10px);
     transition: opacity 0.28s ease, transform 0.28s ease;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 body.saas-app.map-app-open #analysis-result-panel.is-visible {
@@ -796,14 +796,14 @@ body.saas-app.map-app-open #map-tool-rail {
     pointer-events: auto;
     max-height: calc(100vh - 220px);
     overflow: auto;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 body.saas-app.map-app-open #map-tool-rail button {
     background: rgba(255, 255, 255, 0.06);
     color: #f8faf8;
-    border-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 body.saas-app.map-app-open #geo-coord-pill {
@@ -822,8 +822,8 @@ body.saas-app.map-app-open #geo-coord-pill {
     padding: 8px 12px;
     cursor: pointer;
     pointer-events: auto;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     color: #e8f2eb;
 }
 
@@ -874,16 +874,16 @@ body.saas-app.map-app-open #geo-coord-pill #footer-zoom {
 }
 
 .saas-fab-menu button {
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
     padding: 10px 12px;
-    background: rgba(22, 34, 24, 0.9);
+    background: rgba(16, 26, 19, 0.90);
     color: #f8faf8;
     font-size: 12px;
     font-weight: 800;
     text-align: left;
     cursor: pointer;
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(20px);
 }
 
 .saas-geo-fab {
@@ -900,7 +900,7 @@ body.saas-app.map-app-open #geo-coord-pill #footer-zoom {
     color: #052e1c;
     font-size: 22px;
     font-weight: 800;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     cursor: pointer;
     align-items: center;
     justify-content: center;
@@ -1027,11 +1027,11 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
     }
 
     body.saas-app.map-app-open .android-bottom-nav {
-        background: rgba(22, 34, 24, 0.78);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        border-top: 1px solid rgba(255, 255, 255, 0.14);
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+        background: rgba(16, 26, 19, 0.90);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     }
 
     body.saas-app.map-app-open .android-bottom-nav button {
@@ -1158,11 +1158,11 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
 
 @media (max-width: 1023px) {
     body.saas-app.map-app-open .android-bottom-nav {
-        background: rgba(22, 34, 24, 0.78);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        border-top: 1px solid rgba(255, 255, 255, 0.14);
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+        background: rgba(16, 26, 19, 0.90);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     }
 
     body.saas-app.map-app-open .android-bottom-nav button {
