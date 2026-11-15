@@ -978,6 +978,9 @@ function setBaseMap(name) {
 
   const map = $('map');
   if (map) map.style.background = mapPalette[name] || mapPalette.ortho;
+  document.body.dataset.basemap = name;
+  const orthoToggle = $('layerbar-ortho');
+  if (orthoToggle) orthoToggle.classList.toggle('is-on', name === 'ortho');
 
   if (appMapEngine) {
     appMapEngine.setBaseLayer(name);
@@ -1087,22 +1090,26 @@ function locateUserGPS() {
 
   navigator.geolocation.getCurrentPosition(
     (position) => {
-      const lat = position.coords.latitude.toFixed(5);
-      const lng = position.coords.longitude.toFixed(5);
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      if (appMapEngine?.map) {
+        appMapEngine.map.flyTo([lat, lng], Math.max(appMapEngine.map.getZoom(), 14), { duration: 0.8 });
+      }
       const content = $('analysis-content');
       if (content) {
         content.innerHTML = `
           <div class="space-y-2">
             <div class="font-extrabold text-emerald-800 uppercase tracking-wider">Moja poloha GPS</div>
-            <div>Lat: <span class="font-mono text-slate-800">${lat}</span></div>
-            <div>Lng: <span class="font-mono text-slate-800">${lng}</span></div>
+            <div>Lat: <span class="font-mono text-slate-800">${lat.toFixed(5)}</span></div>
+            <div>Lng: <span class="font-mono text-slate-800">${lng.toFixed(5)}</span></div>
           </div>
         `;
         revealInspector();
       }
       showToast('GPS poloha bola načítaná', 'success');
     },
-    () => showToast('Nepodarilo sa načítať GPS polohu', 'warning')
+    () => showToast('Nepodarilo sa načítať GPS polohu', 'warning'),
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 15000 }
   );
 }
 
