@@ -1,11 +1,12 @@
 /**
  * @file offline-sync.js
- * @description IndexedDB Offline fronta a PostGIS priestorový adaptér.
+ * @description IndexedDB Offline fronta a PostGIS priestorový adaptér (Supabase).
  */
 
 import { store } from '../core/state-store.js';
 import { AgroApiService } from './api.js';
 import { showNotificationToast } from '../components/event-bus.js';
+import { getApiariesInBuffer } from './supabase-client.js';
 
 const DB_NAME = 'AgrogisEnterpriseDB';
 const STORE_NAME = 'offline_mutations';
@@ -50,8 +51,10 @@ export class OfflineSyncService {
                     try {
                         if (m.type === 'UPSERT_ENTITY') {
                             await supabaseClient.from('registered_entities').upsert([m.payload], { onConflict: 'ico' });
-                        } else if (m.type === 'INSERT_HIVE') {
-                            await supabaseClient.from('hives').insert([m.payload]);
+                        } else if (m.type === 'INSERT_HIVE' || m.type === 'INSERT_VCELNICA') {
+                            await supabaseClient.from('vcelnice').insert([m.payload]);
+                        } else if (m.type === 'INSERT_SPRAY' || m.type === 'INSERT_EVIDENCIA_POSTREKU') {
+                            await supabaseClient.from('evidencia_postrekov').insert([m.payload]);
                         }
                         const deleteTx = db.transaction([STORE_NAME], 'readwrite');
                         deleteTx.objectStore(STORE_NAME).delete(m.id);
@@ -65,13 +68,31 @@ export class OfflineSyncService {
     static async executeSpatialCollisionCheck(supabaseClient, isCloudConfigured, sprayLat, sprayLng, radiusMeters = 3000) {
         if (isCloudConfigured && supabaseClient && navigator.onLine) {
             try {
-                const { data, error } = await supabaseClient.rpc('check_spray_collision_optimized', {
-                    spray_lat: sprayLat,
-                    spray_lng: sprayLng,
-                    radius_meters: radiusMeters
-                });
-                if (!error && Array.isArray(data) && data.length > 0) return data;
-            } catch (err) {}
+                const rows = await getApiariesInBuffer(supabaseClient, sprayLat, sprayLng, radiusMeters);
+                if (Array.isArray(rows) && rows.length > 0) {
+                    return rows.map((row) => ({
+                        hive_id: row.hive_id ?? row.id,
+                        hive_name: row.hive_name ?? row.nazov,
+                        hive_count: Number(row.hive_count ?? row.pocet_rodin) || 0,
+                        hive_email: row.hive_email ?? row.email ?? 'ochrana@vcelari.sk',
+                        hive_cevz: row.hive_cevz ?? row.cevz ?? 'CEVZ-SR',
+                        lat: Number(row.lat),
+                        lng: Number(row.lng),
+                        distance_meters: Number(row.distance_meters)
+                    }));
+                }
+            } catch (err) {
+                try {
+                    const { data, error } = await supabaseClient.rpc('check_spray_collision_optimized', {
+                        spray_lat: sprayLat,
+                        spray_lng: sprayLng,
+                        radius_meters: radiusMeters
+                    });
+                    if (!error && Array.isArray(data) && data.length > 0) return data;
+                } catch {
+                    /* fall through to local */
+                }
+            }
         }
 
         const allHives = store.getState().hives;

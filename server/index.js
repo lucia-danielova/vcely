@@ -655,6 +655,19 @@ app.get('/api/spray-alerts/mine', authenticate, async (req, res, next) => {
 });
 
 app.use('/api', (req, res) => sendError(res, 404, 'NOT_FOUND'));
+
+// Inject public Supabase anon key for the browser when SUPABASE_ANON_KEY is set in .env
+app.get('/js/config/supabase-runtime.js', (req, res) => {
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim();
+  const url = String(process.env.SUPABASE_URL || 'https://mwvtwfmerozjelyymmxg.supabase.co').trim();
+  res.type('application/javascript');
+  res.set('Cache-Control', 'no-store');
+  res.send(
+    `window.__VCELY_SUPABASE_ANON_KEY__=${JSON.stringify(anonKey)};\n` +
+      `window.__VCELY_SUPABASE_URL__=${JSON.stringify(url)};\n`
+  );
+});
+
 app.use(express.static(path.resolve(__dirname, '..')));
 app.use((error, req, res, next) => {
   console.error('[api]', error.message);

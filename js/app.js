@@ -2,6 +2,20 @@ import { store } from './core/state-store.js';
 import { AgroMapEngine } from './components/map-engine.js';
 import { backendApi } from './services/backend-api.js';
 import { AgroApiService } from './services/api.js';
+import { OfflineSyncService } from './services/offline-sync.js';
+import {
+  SUPABASE_URL,
+  createSupabaseClient,
+  fetchVcelnice,
+  insertVcelnica,
+  insertEvidenciaPostreku
+} from './services/supabase-client.js';
+
+// Real Supabase project URL (anon key resolved from meta / window / localStorage)
+const SUPABASE_PROJECT_URL = SUPABASE_URL;
+if (typeof window !== 'undefined') {
+  window.__VCELY_SUPABASE_URL__ = SUPABASE_PROJECT_URL;
+}
 import { bindPwaInstallUi, watchServiceWorkerUpdates, initNativeCapacitorShell } from './services/pwa-install.js';
 import {
   bindAndroidShell,
@@ -12,6 +26,9 @@ import {
 } from './components/android-shell.js';
 import { bindSaasShell } from './components/saas-shell.js';
 import { bindEcosystemCenter } from './components/ecosystem-center.js';
+
+let supabaseClient = null;
+let isCloudConfigured = false;
 
 const personaConfig = {
   BEE_PRO: {
@@ -1690,7 +1707,7 @@ function closeHiveModal() {
   pendingHiveCoordinates = null;
 }
 
-function confirmAddHive() {
+async function confirmAddHive() {
   const nameInput = $('modal-hive-name');
   const countInput = $('modal-hive-count');
   const cevzInput = $('modal-hive-cevz');
@@ -1717,8 +1734,36 @@ function confirmAddHive() {
   const updatedHives = [...state.hives, hive];
   store.setState({ hives: updatedHives });
   closeHiveModal();
-  if (appMapEngine) appMapEngine.renderAllHives();
-  showToast('Včelstvo bolo pridané do mapy', 'success');
+  if (appMapEngine) {
+    store.setState({ isHiveRadiiVisible: true, isHivesLayerVisible: true });
+    appMapEngine.renderAllHives();
+  }
+  showToast('Včelstvo bolo pridané — aktivované 3 km ochranné pásmo', 'success');
+
+  if (isCloudConfigured && supabaseClient) {
+    try {
+      const serverId = await insertVcelnica(supabaseClient, hive);
+      if (serverId) {
+        const withServerId = (store.getState().hives || []).map((h) => (
+          h.id === hive.id ? { ...h, serverId, source: 'supabase:vcelnice' } : h
+        ));
+        store.setState({ hives: withServerId });
+      }
+    } catch (error) {
+      console.warn('[Včely] Supabase vcelnice insert failed:', error);
+      await OfflineSyncService.enqueueMutation('INSERT_VCELNICA', {
+        nazov: hive.name,
+        pocet_rodin: hive.count,
+        email: hive.email,
+        cevz: hive.cevz,
+        lat: hive.lat,
+        lng: hive.lng,
+        typ_stanovista: hive.siteType,
+        znaska_tagy: hive.nectarTags
+      });
+      showToast('Uložené lokálne — sync so Supabase keď bude spojenie', 'warning');
+    }
+  }
 
   if (getCurrentUserSafe() && localStorage.getItem('agrogis_api_token_v1')) {
     backendApi.saveHive(hive)
@@ -1879,10 +1924,9 @@ function renderSprayBookList() {
     : '<p class="text-slate-500">Kniha je zatiaľ prázdna.</p>';
 }
 
-function saveSprayBookEntry(event) {
+async function saveSprayBookEntry(event) {
   event.preventDefault();
-  const rows = readJsonList(SPRAY_BOOK_KEY);
-  rows.unshift({
+  const entry = {
     id: Date.now(),
     parcel: $('spray-parcel')?.value?.trim() || '',
     areaHa: Number($('spray-area')?.value || 0),
@@ -1892,10 +1936,49 @@ function saveSprayBookEntry(event) {
     when: $('spray-when')?.value || '',
     toxicity: $('spray-toxicity-value')?.value || '',
     sprayWindow: $('spray-window-value')?.value || ''
-  });
+  };
+  const rows = readJsonList(SPRAY_BOOK_KEY);
+  rows.unshift(entry);
   localStorage.setItem(SPRAY_BOOK_KEY, JSON.stringify(rows));
   renderSprayBookList();
-  showToast('Záznam postreku je v knihe', 'success');
+
+  const mapCenter = appMapEngine?.map?.getCenter?.();
+  const location = mapCenter
+    ? { lat: mapCenter.lat, lng: mapCenter.lng }
+    : { lat: null, lng: null };
+
+  if (isCloudConfigured && supabaseClient) {
+    try {
+      await insertEvidenciaPostreku(supabaseClient, entry, location);
+      showToast('Postrek uložený do evidencia_postrekov (Supabase)', 'success');
+    } catch (error) {
+      console.warn('[Včely] evidencia_postrekov insert failed:', error);
+      await OfflineSyncService.enqueueMutation('INSERT_EVIDENCIA_POSTREKU', {
+        parcela: entry.parcel,
+        plocha_ha: entry.areaHa,
+        pripravok: entry.product,
+        vietor_ms: entry.windMs,
+        teplota_c: entry.tempC,
+        termin: entry.when,
+        toxicita: entry.toxicity,
+        okno_postreku: entry.sprayWindow,
+        lat: location.lat,
+        lng: location.lng
+      });
+      showToast('Záznam v knihe — sync so Supabase neskôr', 'warning');
+    }
+  } else {
+    showToast('Záznam postreku je v knihe', 'success');
+  }
+
+  if (Number.isFinite(location.lat) && Number.isFinite(location.lng) && appMapEngine) {
+    try {
+      await appMapEngine.runSprayCollisionAnalysis?.(location.lat, location.lng);
+    } catch {
+      /* optional map highlight */
+    }
+  }
+
   event.target.reset();
   const parcel = $('spray-parcel');
   const area = $('spray-area');
@@ -2125,11 +2208,55 @@ function initUi() {
   });
 }
 
-function initMapApp() {
-  if (!appMapEngine) {
-    appMapEngine = new AgroMapEngine('interactive-nature-map', null, false);
-    window.agrogisMap = appMapEngine;
+async function loadVcelniceFromSupabase() {
+  if (!isCloudConfigured || !supabaseClient) return;
+  try {
+    const remote = await fetchVcelnice(supabaseClient);
+    if (!remote.length) return;
+    const local = store.getState().hives || [];
+    const byKey = new Map();
+    for (const hive of [...remote, ...local]) {
+      const key = hive.serverId || `${Number(hive.lat).toFixed(5)},${Number(hive.lng).toFixed(5)}`;
+      if (!byKey.has(key)) byKey.set(key, hive);
+    }
+    store.setState({
+      hives: [...byKey.values()],
+      isHivesLayerVisible: true,
+      isHiveRadiiVisible: true
+    });
+    if (appMapEngine) appMapEngine.renderAllHives();
+    showToast(`Načítaných ${remote.length} včelníc zo Supabase`, 'success');
+  } catch (error) {
+    console.warn('[Včely] Načítanie vcelnice zlyhalo:', error);
   }
+}
+
+function initSupabase() {
+  const { client, configured, url } = createSupabaseClient();
+  supabaseClient = client;
+  isCloudConfigured = configured;
+  window.__VCELY_SUPABASE__ = { client, configured, url };
+  if (!configured) {
+    console.info(
+      '[Včely] Supabase URL pripravené (%s). Nastavte anon key cez <meta name="supabase-anon-key"> alebo localStorage vcely_supabase_anon_key.',
+      url
+    );
+    return;
+  }
+  console.info('[Včely] Supabase klient pripojený:', url);
+  OfflineSyncService.synchronize(supabaseClient, true);
+}
+
+function initMapApp() {
+  initSupabase();
+  if (!appMapEngine) {
+    appMapEngine = new AgroMapEngine('interactive-nature-map', supabaseClient, isCloudConfigured);
+    window.agrogisMap = appMapEngine;
+  } else {
+    appMapEngine.supabase = supabaseClient;
+    appMapEngine.isCloudConfigured = isCloudConfigured;
+  }
+  loadVcelniceFromSupabase();
 }
 
 function applyLaunchDeepLinks() {

@@ -556,7 +556,8 @@ export class AgroMapEngine {
         if (!state.isHivesLayerVisible) return;
 
         hives.forEach(hive => {
-            const isEndangered = collidedHiveIds.has(hive.id);
+            const isEndangered = collidedHiveIds.has(hive.id)
+                || (hive.serverId != null && collidedHiveIds.has(hive.serverId));
             const badgeBg = isEndangered
                 ? 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)'
                 : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
