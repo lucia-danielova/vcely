@@ -960,4 +960,261 @@ html, body {
         font-size: 10px;
         gap: 2px;
     }
+} * ANDROID / PWA APP SHELL — splash, install, bottom nav, safe areas
+ * ============================================================================ */
+
+html.android-safe-ui,
+body.android-app-shell {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
+
+.app-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.55rem;
+    background:
+        radial-gradient(ellipse 70% 45% at 50% 20%, rgba(255, 255, 255, 0.92), transparent 65%),
+        linear-gradient(165deg, #f4f8ec 0%, #e7f1e3 48%, #eaf3e2 100%);
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.app-splash img {
+    width: 96px;
+    height: 96px;
+    border-radius: 24px;
+    box-shadow: 0 18px 40px -18px rgba(15, 42, 28, 0.45);
+    animation: splash-rise 0.7s ease both;
+}
+
+.app-splash-title {
+    margin: 0.4rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #15301f;
+}
+
+.app-splash-sub {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4a6b57;
+}
+
+.app-splash-hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+@keyframes splash-rise {
+    from { transform: translateY(10px) scale(0.96); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-splash img { animation: none; }
+    .app-splash { transition: none; }
+}
+
+.android-install-banner {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 1.15rem;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(4, 120, 87, 0.22);
+    box-shadow: 0 18px 40px -18px rgba(15, 42, 28, 0.45);
+    backdrop-filter: blur(14px);
+}
+
+.android-install-banner[hidden] { display: none !important; }
+
+.android-install-banner img {
+    border-radius: 12px;
+    flex: 0 0 auto;
+}
+
+.android-install-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.android-install-copy strong {
+    font-size: 0.82rem;
+    color: #15301f;
+}
+
+.android-install-copy span {
+    font-size: 0.7rem;
+    color: #4a6b57;
+    line-height: 1.35;
+}
+
+.android-install-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 0 0 auto;
+}
+
+.android-install-primary {
+    border: 0;
+    border-radius: 0.7rem;
+    padding: 0.45rem 0.75rem;
+    background: #047857;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.android-install-ghost {
+    border: 0;
+    background: transparent;
+    color: #52645c;
+    font-size: 0.68rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.app-update-bar {
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.85rem;
+    border-radius: 999px;
+    background: #15301f;
+    color: #eefbf1;
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.45);
+}
+
+.app-update-bar[hidden] { display: none !important; }
+
+.app-update-bar button {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    background: #4fa66a;
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.android-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    display: none;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+    padding: 0.35rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid rgba(21, 48, 31, 0.1);
+    box-shadow: 0 -10px 30px -18px rgba(15, 42, 28, 0.35);
+    backdrop-filter: blur(16px);
+}
+
+.android-bottom-nav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    min-height: 48px;
+    border: 0;
+    border-radius: 0.85rem;
+    background: transparent;
+    color: #52645c;
+    font-size: 0.62rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.android-bottom-nav .android-nav-icon {
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.android-bottom-nav button.is-active {
+    color: #047857;
+    background: rgba(4, 120, 87, 0.1);
+}
+
+.landing-install-button {
+    border: 1px solid rgba(4, 120, 87, 0.35);
+    background: rgba(234, 243, 226, 0.95);
+    color: #184a32;
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.landing-cta-btn-install {
+    background: linear-gradient(135deg, #047857, #1f7a4d) !important;
+    color: #fff !important;
+    border: 0 !important;
+}
+
+@media (max-width: 1023px) {
+    .android-bottom-nav {
+        display: grid;
+    }
+
+    body.android-app-shell {
+        padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    }
+
+    .eco-header {
+        padding-top: 0.15rem;
+    }
+
+    #landing-portal-overlay {
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    }
+
+    footer.bg-white.border-t {
+        margin-bottom: 0;
+    }
+}
+
+@media (min-width: 1024px) {
+    .android-install-banner {
+        bottom: 24px;
+        left: auto;
+        right: 24px;
+        width: min(420px, calc(100vw - 48px));
+    }
+}
+
+html.is-standalone-app .landing-install-button,
+html.is-native-android .landing-install-button,
+html.is-standalone-app .landing-cta-btn-install,
+html.is-native-android .landing-cta-btn-install {
+    display: none;
+}
+

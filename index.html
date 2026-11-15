@@ -2,7 +2,7 @@
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <script>
         // GitHub Pages SPA fallback: restore the route that 404.html encoded as
         // "?/<path>&<query>" so deep links keep working (spa-github-pages pattern).
@@ -19,12 +19,21 @@
         })();
     </script>
     <title>Ak nebudú včely, nebude nič. | Ochrana prírody a opeľovačov</title>
-    
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="./assets/agrogis-192.png">
-    <link rel="apple-touch-icon" href="./assets/agrogis-192.png">
-    <meta name="theme-color" content="#143525">
+    <meta name="description" content="Jedna živá mapa spája včelárov a pestovateľov. Nainštalovateľná na Android ako samostatná aplikácia.">
+    <meta name="application-name" content="Včely a pôda">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Včely a pôda">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#143525">
+
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./assets/icon-512.png">
+    <link rel="apple-touch-icon" href="./assets/icon-192.png">
+    <link rel="apple-touch-startup-image" href="./assets/splash-narrow.png">
 
     <!-- Google Fonts: Bricolage Grotesque (display) · Manrope (UI) · JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,7 +65,34 @@
     <!-- Vlastný ekologický štýl -->
     <link rel="stylesheet" href="./css/style.css">
 </head>
-<body class="bg-[#e8efe9] text-slate-800 font-sans h-screen flex flex-col overflow-hidden select-none">
+<body class="bg-[#e8efe9] text-slate-800 font-sans h-screen flex flex-col overflow-hidden select-none android-app-shell">
+
+    <!-- Natívny splash pri štarte (PWA / Android) -->
+    <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Načítavam aplikáciu">
+        <img src="./assets/icon-192.png" alt="" width="96" height="96">
+        <p class="app-splash-title">Včely a pôda</p>
+        <p class="app-splash-sub">Ochrana prírody na jednej mape</p>
+    </div>
+
+    <!-- Android / PWA inštalačný banner -->
+    <div id="android-install-banner" class="android-install-banner" hidden>
+        <img src="./assets/icon-96.png" alt="" width="44" height="44">
+        <div class="android-install-copy">
+            <strong>Nainštalovať na Android</strong>
+            <span id="android-install-status">Samostatná aplikácia bez prehliadača, s offline shellom.</span>
+            <span id="android-install-ios-hint" hidden>Na iPhone: Zdieľať → Pridať na plochu</span>
+        </div>
+        <div class="android-install-actions">
+            <button type="button" id="android-install-btn" class="android-install-primary">Inštalovať</button>
+            <button type="button" id="android-install-dismiss" class="android-install-ghost" aria-label="Zavrieť">Neskôr</button>
+        </div>
+    </div>
+
+    <!-- Bar pre aktualizáciu service workera -->
+    <div id="app-update-bar" class="app-update-bar" hidden>
+        <span>Je dostupná nová verzia aplikácie.</span>
+        <button type="button" id="app-update-reload">Obnoviť</button>
+    </div>
 
     <!-- ==================================================================== -->
     <!-- ÚVODNÁ OBRAZOVKA — brand + plnoplošná živá mapa                       -->
@@ -68,6 +104,7 @@
                 <img src="./assets/agrogis-icon.svg" alt="" width="28" height="28">
             </div>
             <nav class="eco-landing-header-nav" aria-label="Účet">
+                <button type="button" data-pwa-install class="landing-install-button" title="Nainštalovať aplikáciu">App</button>
                 <button type="button" onclick="openAuthModal('login')" class="landing-account-button">Prihlásiť sa</button>
                 <button type="button" onclick="openAuthModal('register')" class="landing-register-button">Zaregistrovať sa</button>
             </nav>
@@ -84,6 +121,7 @@
                         <button type="button" onclick="openAuthModal('register')" class="landing-cta-btn landing-cta-btn-register">Zaregistrovať sa</button>
                         <button type="button" onclick="openAuthModal('login')" class="landing-cta-btn landing-cta-btn-login">Prihlásiť sa</button>
                         <button type="button" onclick="closeLandingPortal()" class="landing-map-link">Otvoriť mapu</button>
+                        <button type="button" data-pwa-install class="landing-cta-btn landing-cta-btn-install">Nainštalovať app</button>
                     </div>
                 </div>
 
@@ -1170,14 +1208,33 @@
 
     </div>
 
+    <!-- Android spodná navigácia (mobile) -->
+    <nav id="android-bottom-nav" class="android-bottom-nav" aria-label="Hlavná navigácia aplikácie">
+        <button type="button" data-bottom-nav="home" class="is-active" aria-current="page">
+            <span class="android-nav-icon" aria-hidden="true">⌂</span>
+            <span>Domov</span>
+        </button>
+        <button type="button" data-bottom-nav="map">
+            <span class="android-nav-icon" aria-hidden="true">◉</span>
+            <span>Mapa</span>
+        </button>
+        <button type="button" data-bottom-nav="search">
+            <span class="android-nav-icon" aria-hidden="true">⌕</span>
+            <span>Hľadať</span>
+        </button>
+        <button type="button" data-bottom-nav="tools">
+            <span class="android-nav-icon" aria-hidden="true">⌖</span>
+            <span>Nástroje</span>
+        </button>
+        <button type="button" data-bottom-nav="account">
+            <span class="android-nav-icon" aria-hidden="true">☺</span>
+            <span>Účet</span>
+        </button>
+    </nav>
+
     <!-- Kontajner pre plávajúce notifikácie -->
-    <div id="toast-container" class="fixed bottom-11 right-5 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
+    <div id="toast-container" class="fixed bottom-24 right-5 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full md:bottom-11"></div>
 
-    <!-- Externé knižnice: Supabase & Leaflet -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-    <!-- Hlavný ES modul aplikácie -->
     <div id="spray-book-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <form id="form-spray-book" onsubmit="saveSprayBookEntry(event)" class="bg-white border border-stone-300 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto">
             <div class="flex items-start justify-between gap-3">
@@ -1240,6 +1297,11 @@
         </form>
     </div>
 
+    <!-- Externé knižnice: Supabase & Leaflet -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Hlavný ES modul aplikácie -->
     <script type="module" src="./js/app.js"></script>
 </body>
 </html>

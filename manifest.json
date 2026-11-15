@@ -1,29 +1,84 @@
 {
-	"id": "./",
-	"name": "Ak nebudú včely, nebude nič.",
+	"id": "/",
+	"name": "Včely a pôda — ochrana prírody",
 	"short_name": "Včely a pôda",
-	"description": "Spoločná ochrana včiel, pôdy a prírody na Slovensku.",
+	"description": "Spoločná mapa na ochranu včiel, pôdy a ekosystémov na Slovensku. Kataster, LPIS a 3 km ochranné pásmo.",
 	"lang": "sk",
-	"start_url": "./",
+	"dir": "ltr",
+	"start_url": "./?source=pwa",
 	"scope": "./",
 	"display": "standalone",
-	"display_override": ["standalone", "minimal-ui"],
+	"display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
 	"orientation": "any",
-	"background_color": "#f8faf7",
+	"background_color": "#eaf3e2",
 	"theme_color": "#047857",
-	"categories": ["productivity", "utilities"],
+	"categories": ["productivity", "navigation", "lifestyle"],
+	"prefer_related_applications": false,
+	"launch_handler": {
+		"client_mode": ["focus-existing", "auto"]
+	},
+	"handle_links": "preferred",
+	"edge_side_panel": {
+		"preferred_width": 420
+	},
 	"icons": [
 		{
-			"src": "./assets/agrogis-192.png",
+			"src": "./assets/icon-192.png",
 			"sizes": "192x192",
 			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "./assets/agrogis-512.png",
+			"src": "./assets/icon-512.png",
 			"sizes": "512x512",
 			"type": "image/png",
-			"purpose": "any maskable"
+			"purpose": "any"
+		},
+		{
+			"src": "./assets/icon-maskable-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "./assets/icon-maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
 		}
-	]
+	],
+	"shortcuts": [
+		{
+			"name": "Otvoriť mapu",
+			"short_name": "Mapa",
+			"description": "Priamo do pracovnej mapy",
+			"url": "./?source=shortcut&view=map",
+			"icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Registrácia",
+			"short_name": "Účet",
+			"description": "Vytvoriť profil včelára alebo pestovateľa",
+			"url": "./?source=shortcut&view=register",
+			"icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+		}
+	],
+	"screenshots": [
+		{
+			"src": "./assets/splash-narrow.png",
+			"sizes": "1080x1920",
+			"type": "image/png",
+			"form_factor": "narrow",
+			"label": "Úvodná obrazovka ochrany prírody"
+		},
+		{
+			"src": "./assets/splash-wide.png",
+			"sizes": "1280x720",
+			"type": "image/png",
+			"form_factor": "wide",
+			"label": "Mapa ekosystému Slovenska"
+		}
+	],
+	"related_applications": [],
+	"iarc_rating_id": ""
 }

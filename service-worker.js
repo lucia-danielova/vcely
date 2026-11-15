@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'agrogis-shell-v1';
-const RUNTIME_CACHE = 'agrogis-runtime-v1';
+const SHELL_CACHE = 'vcely-shell-v2';
+const RUNTIME_CACHE = 'vcely-runtime-v2';
 const SHELL_FILES = [
 	'./',
 	'./index.html',
@@ -9,15 +9,22 @@ const SHELL_FILES = [
 	'./assets/agrogis-icon.svg',
 	'./assets/agrogis-192.png',
 	'./assets/agrogis-512.png',
+	'./assets/icon-192.png',
+	'./assets/icon-512.png',
+	'./assets/icon-maskable-192.png',
+	'./assets/icon-maskable-512.png',
+	'./assets/splash-narrow.png',
 	'./js/app.js',
 	'./js/core/state-store.js',
 	'./js/components/event-bus.js',
 	'./js/components/map-engine.js',
+	'./js/components/android-shell.js',
 	'./js/services/api.js',
 	'./js/services/auth.js',
 	'./js/services/backend-api.js',
 	'./js/services/circuit-breaker.js',
-	'./js/services/offline-sync.js'
+	'./js/services/offline-sync.js',
+	'./js/services/pwa-install.js'
 ];
 const CDN_HOSTS = new Set([
 	'cdn.tailwindcss.com',
@@ -40,7 +47,8 @@ self.addEventListener('activate', (event) => {
 	event.waitUntil((async () => {
 		const cacheNames = await caches.keys();
 		await Promise.all(cacheNames
-			.filter((name) => name.startsWith('agrogis-') && ![SHELL_CACHE, RUNTIME_CACHE].includes(name))
+			.filter((name) => (name.startsWith('agrogis-') || name.startsWith('vcely-'))
+				&& ![SHELL_CACHE, RUNTIME_CACHE].includes(name))
 			.map((name) => caches.delete(name)));
 		await self.clients.claim();
 	})());
