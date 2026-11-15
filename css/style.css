@@ -1072,6 +1072,11 @@ body.android-app-shell {
     border-radius: 0.4rem;
 }
 
+.android-install-copy #android-install-windows-hint:focus {
+    outline: 2px solid #047857;
+    outline-offset: 3px;
+}
+
 .android-install-copy #android-install-windows-hint.pwa-install-hint-pulse {
     animation: pwa-hint-pulse 0.85s ease;
 }

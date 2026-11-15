@@ -134,8 +134,17 @@ function showBanner(mode) {
     installBtn.hidden = hidePrimary;
     if (copy.button) installBtn.textContent = copy.button;
   }
-  // Do not focus windowsHint here — unsolicited banners (e.g. 2.8s timeout)
-  // must not steal keyboard caret from login/register fields.
+}
+
+/** Move focus to the Windows steps only after an explicit install request. */
+function focusWindowsSteps(windowsHint) {
+  if (!windowsHint || windowsHint.hidden) return;
+  windowsHint.setAttribute('tabindex', '-1');
+  try {
+    windowsHint.focus({ preventScroll: false });
+  } catch {}
+  windowsHint.classList.add('pwa-install-hint-pulse');
+  window.setTimeout(() => windowsHint.classList.remove('pwa-install-hint-pulse'), 900);
 }
 
 function hideBanner() {
@@ -168,16 +177,8 @@ async function promptInstall() {
       && banner.dataset.mode === 'windows-manual'
       && windowsHint
       && !windowsHint.hidden;
-    if (stepsAlreadyVisible) {
-      // Pulse + scroll only — never steal focus from form fields.
-      try {
-        windowsHint.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      } catch {}
-      windowsHint.classList.add('pwa-install-hint-pulse');
-      window.setTimeout(() => windowsHint.classList.remove('pwa-install-hint-pulse'), 900);
-      return false;
-    }
-    showBanner('windows-manual');
+    if (!stepsAlreadyVisible) showBanner('windows-manual');
+    focusWindowsSteps(getBannerEls().windowsHint);
     return false;
   }
   showBanner('manual');
