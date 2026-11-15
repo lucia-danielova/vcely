@@ -1072,7 +1072,18 @@ function showFarmerShield(entity) {
   if (!shield || !entity) return;
   const seat = entity.address || entity.city || 'Sídlo';
   const source = entity.source || '';
-  const live = /RPO|RegisterUZ|RÚZ|ORSR|statistics\.sk|Slovensko\.Digital|datahub|sluzby\.orsr/i.test(source);
+  const live = /RPO|RegisterUZ|RÚZ|ORSR|statistics\.sk|Slovensko\.Digital|datahub|sluzby\.orsr|Apino/i.test(source);
+  if (Array.isArray(entity.people) && entity.people.length) {
+    const peopleLine = entity.people
+      .slice(0, 3)
+      .map((person) => `${person.name}${person.role ? ` (${person.role})` : ''}`)
+      .join(', ');
+    shield.textContent = live
+      ? `Overené vo verejných registroch (${source}): ${entity.ico || 'IČO'} • ${seat} • osoby: ${peopleLine}`
+      : `Vybraný subjekt: ${entity.ico || 'IČO'} • ${seat} • osoby: ${peopleLine}`;
+    shield.classList.remove('hidden');
+    return;
+  }
   shield.textContent = live
     ? `Overené vo verejných registroch (${source}): ${entity.ico || 'IČO'} • ${seat}`
     : `Vybraný subjekt: ${entity.ico || 'IČO'} • ${seat}`;

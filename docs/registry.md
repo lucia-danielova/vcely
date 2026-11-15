@@ -10,8 +10,9 @@ Registrácia poľnohospodára dopĺňa oficiálne údaje (názov, IČO, sídlo a
 | **RegisterUZ MF SR** | `https://www.registeruz.sk/cruz-public/api/uctovne-jednotky` + `…/uctovna-jednotka` | Názov UJ, sídlo, DIČ, SK NACE, právna forma |
 | **ORSR MS SR** | `https://sluzby.orsr.sk/api/legal-person` | Názov, IČO, sídlo, spisová značka |
 | **Slovensko.Digital Datahub RUZ** | `https://datahub.ekosystem.slovensko.digital/api/data/ruz/accounting_entities/:id` | Názov, IČO, DIČ, sídlo, právna forma, NACE (ID zdieľa s RegisterUZ) |
+| **Apino.sk RPO** (voliteľné) | `https://api.apino.sk/api/v1/organizations` + `/people` | Názov, IČO, sídlo, štatutári/spoločníci — vyžaduje `APINO_API_KEY` (iba server, `.env`) |
 
-Klient aj server volajú tieto zdroje paralelne a zlúčia výsledok (`server/registry.js`, `js/services/registry-lookup.js`).
+Klient aj server volajú bezplatné zdroje paralelne. Apino beží **iba na serveri** cez env kľúč (nikdy v prehliadači / gite).
 
 ## Vyskúšané a vyradené
 

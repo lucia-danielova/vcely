@@ -7,7 +7,9 @@ const {
   lookupEntityByIco,
   searchEntitiesByQuery,
   fetchFromSlovenskoDigital,
-  fetchFromStatisticsSkRpoByIco
+  fetchFromStatisticsSkRpoByIco,
+  fetchFromApinoByIco,
+  getApinoApiKey
 } = require('./registry');
 
 test('padIco zero-pads short IČO values', () => {
@@ -70,9 +72,12 @@ test('live IČO lookup returns merged public registry data for a known company',
   );
 });
 
-test('api.statistics.sk RPO answers for a known IČO', async () => {
+test('api.statistics.sk RPO answers for a known IČO', async (t) => {
   const entity = await fetchFromStatisticsSkRpoByIco('47700203');
-  assert.ok(entity, 'expected ŠÚ SR RPO hit');
+  if (!entity) {
+    t.skip('ŠÚ SR RPO temporarily unavailable (rate limit / network)');
+    return;
+  }
   assert.match(entity.name, /NaVidieku/i);
   assert.match(entity.source, /statistics\.sk/);
 });
@@ -91,4 +96,20 @@ test('live name search finds companies without paid keys', async () => {
     rows.some((row) => String(row.ico || '').includes('47700203')),
     `expected IČO 47700203 in ${JSON.stringify(rows.map((r) => r.ico))}`
   );
+});
+
+test('Apino RPO returns organization and people when APINO_API_KEY is set', async (t) => {
+  if (!getApinoApiKey()) {
+    t.skip('APINO_API_KEY not configured');
+    return;
+  }
+  const entity = await fetchFromApinoByIco('47700203');
+  if (!entity) {
+    t.skip('Apino temporarily unavailable');
+    return;
+  }
+  assert.match(entity.name, /NaVidieku/i);
+  assert.ok(Array.isArray(entity.people));
+  assert.ok(entity.people.length >= 1);
+  assert.match(entity.source, /Apino/);
 });

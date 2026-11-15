@@ -1,3 +1,9 @@
+try {
+  require('dotenv').config();
+} catch {
+  // dotenv is optional outside the Express boot path
+}
+
 /**
  * Free public Slovak company registries (no API keys / secrets).
  *
@@ -8,6 +14,7 @@
  *  - ORSR MS SR — https://sluzby.orsr.sk/api/legal-person
  *  - Slovensko.Digital Datahub RUZ — https://datahub.ekosystem.slovensko.digital/api/data/ruz/accounting_entities/:id
  *    (bare https://slovensko.digital returns HTML; Autoform requires a paid token — dropped)
+ *  - Apino.sk RPO — https://api.apino.sk/api/v1/organizations (APINO_API_KEY, server-only; includes people)
  *
  * Tried and dropped:
  *  - https://statistics.sk (DNS NXDOMAIN)
@@ -25,6 +32,12 @@ const REGISTER_UZ_LIST = 'https://www.registeruz.sk/cruz-public/api/uctovne-jedn
 const REGISTER_UZ_DETAIL = 'https://www.registeruz.sk/cruz-public/api/uctovna-jednotka';
 const ORSR_SEARCH = 'https://sluzby.orsr.sk/api/legal-person';
 const SD_DATAHUB_RUZ = 'https://datahub.ekosystem.slovensko.digital/api/data/ruz/accounting_entities';
+const APINO_BASE = 'https://api.apino.sk/api/v1';
+
+function getApinoApiKey() {
+  const key = String(process.env.APINO_API_KEY || '').trim();
+  return key.startsWith('apino_') ? key : '';
+}
 
 function cleanIco(value) {
   return String(value || '').replace(/\D/g, '');
@@ -73,6 +86,7 @@ function mergeEntities(parts) {
     fileReference: '',
     establishment: '',
     activities: [],
+    people: [],
     skNace: '',
     lat: null,
     lng: null,
@@ -96,6 +110,9 @@ function mergeEntities(parts) {
     if (part.registerUzId && !merged.registerUzId) merged.registerUzId = part.registerUzId;
     if (Array.isArray(part.activities) && part.activities.length && !merged.activities.length) {
       merged.activities = part.activities.slice(0, 8);
+    }
+    if (Array.isArray(part.people) && part.people.length && !merged.people.length) {
+      merged.people = part.people.slice(0, 12);
     }
     if (Number.isFinite(Number(part.lat)) && merged.lat == null) merged.lat = Number(part.lat);
     if (Number.isFinite(Number(part.lng)) && merged.lng == null) merged.lng = Number(part.lng);
@@ -280,20 +297,94 @@ async function fetchFromOrsr(query, signal) {
   }).filter((row) => row.name || row.ico);
 }
 
+function mapApinoOrg(row) {
+  if (!row) return null;
+  const city = String(row.municipality || '').trim();
+  const street = String(row.street || '').trim();
+  const postalCode = String(row.postal_code || '').trim();
+  const address = String(row.address || [street, [postalCode, city].filter(Boolean).join(' ')].filter(Boolean).join(', ')).trim();
+  return {
+    ico: String(row.cin || '').trim(),
+    name: String(row.name || '').replace(/__hl__|__\/hl__/g, '').trim(),
+    type: 'Apino RPO',
+    address,
+    city,
+    street,
+    postalCode,
+    source: 'Apino.sk RPO (api.apino.sk)'
+  };
+}
+
+async function fetchFromApinoByIco(ico, signal) {
+  const key = getApinoApiKey();
+  if (!key) return null;
+  const padded = padIco(ico);
+  const [org, peoplePayload] = await Promise.all([
+    fetchJson(`${APINO_BASE}/organizations/${encodeURIComponent(padded)}?country=SK`, {
+      signal,
+      timeoutMs: 5000,
+      headers: { Authorization: `Bearer ${key}` }
+    }),
+    fetchJson(`${APINO_BASE}/organizations/${encodeURIComponent(padded)}/people?country=SK`, {
+      signal,
+      timeoutMs: 5000,
+      headers: { Authorization: `Bearer ${key}` }
+    })
+  ]);
+
+  // 300 multi-country responses return { choices, error } without name.
+  if (!org || org.error || !org.name) return null;
+  const mapped = mapApinoOrg(org);
+  if (!mapped) return null;
+
+  const people = Array.isArray(peoplePayload?.data)
+    ? peoplePayload.data
+      .filter((person) => person?.is_current !== false)
+      .map((person) => ({
+        name: String(person.person_name || '').trim(),
+        role: String(person.role_description || person.role_type || '').trim(),
+        roleType: String(person.role_type || '').trim(),
+        validFrom: person.valid_from || ''
+      }))
+      .filter((person) => person.name)
+    : [];
+
+  if (people.length) mapped.people = people;
+  return mapped;
+}
+
+async function fetchFromApinoByName(name, signal) {
+  const key = getApinoApiKey();
+  if (!key) return [];
+  const query = String(name || '').trim();
+  if (query.length < 2) return [];
+  const data = await fetchJson(
+    `${APINO_BASE}/organizations?name=${encodeURIComponent(query)}&country_code=SK`,
+    {
+      signal,
+      timeoutMs: 5000,
+      headers: { Authorization: `Bearer ${key}` }
+    }
+  );
+  const rows = Array.isArray(data?.data) ? data.data.slice(0, 8) : [];
+  return rows.map(mapApinoOrg).filter(Boolean);
+}
+
 async function lookupEntityByIco(ico, signal) {
   const padded = padIco(ico);
   if (!/^\d{6,10}$/.test(cleanIco(ico))) return null;
 
   const registerUzId = await fetchRegisterUzId(padded, signal);
 
-  const [rpo, ruz, sd, orsrRows] = await Promise.all([
+  const [rpo, ruz, sd, orsrRows, apino] = await Promise.all([
     fetchFromStatisticsSkRpoByIco(padded, signal),
     fetchFromRegisterUz(padded, signal),
     fetchFromSlovenskoDigital(padded, signal, registerUzId),
-    fetchFromOrsr(padded, signal)
+    fetchFromOrsr(padded, signal),
+    fetchFromApinoByIco(padded, signal)
   ]);
 
-  return mergeEntities([rpo, ruz, sd, ...(orsrRows || [])]);
+  return mergeEntities([apino, rpo, ruz, sd, ...(orsrRows || [])]);
 }
 
 async function searchEntitiesByQuery(query, signal) {
@@ -306,30 +397,32 @@ async function searchEntitiesByQuery(query, signal) {
     return entity ? [entity] : [];
   }
 
-  const [rpoRows, orsrRows] = await Promise.all([
+  const [rpoRows, orsrRows, apinoRows] = await Promise.all([
     fetchFromStatisticsSkRpoByName(value, signal),
-    fetchFromOrsr(value, signal)
+    fetchFromOrsr(value, signal),
+    fetchFromApinoByName(value, signal)
   ]);
 
   const byIco = new Map();
-  for (const row of [...(rpoRows || []), ...(orsrRows || [])]) {
+  for (const row of [...(apinoRows || []), ...(rpoRows || []), ...(orsrRows || [])]) {
     const key = padIco(row.ico) || row.name;
     const existing = byIco.get(key);
     byIco.set(key, existing ? mergeEntities([existing, row]) : row);
   }
 
-  // Enrich first few IČO hits via RegisterUZ + Slovensko.Digital Datahub when possible.
+  // Enrich first few IČO hits via RegisterUZ + Slovensko.Digital + Apino people when possible.
   const enriched = [];
   for (const row of [...byIco.values()].slice(0, 5)) {
     if (!row.ico) {
       enriched.push(row);
       continue;
     }
-    const [ruz, sd] = await Promise.all([
+    const [ruz, sd, apino] = await Promise.all([
       fetchFromRegisterUz(row.ico, signal),
-      fetchFromSlovenskoDigital(row.ico, signal)
+      fetchFromSlovenskoDigital(row.ico, signal),
+      fetchFromApinoByIco(row.ico, signal)
     ]);
-    enriched.push(mergeEntities([row, ruz, sd]) || row);
+    enriched.push(mergeEntities([row, apino, ruz, sd]) || row);
   }
   return enriched.filter(Boolean).slice(0, 10);
 }
@@ -345,5 +438,8 @@ module.exports = {
   fetchFromStatisticsSkRpoByName,
   fetchFromRegisterUz,
   fetchFromSlovenskoDigital,
-  fetchFromOrsr
+  fetchFromOrsr,
+  fetchFromApinoByIco,
+  fetchFromApinoByName,
+  getApinoApiKey
 };

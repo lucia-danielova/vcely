@@ -355,9 +355,11 @@ Response:
 ## 6. Registry and verification endpoints
 
 ### POST /api/registry/verify-entity
-Looks up a company/farmer by IČO across free public registers (no paid API keys):
+Looks up a company/farmer by IČO across free public registers:
 ŠÚ SR RPO (`api.statistics.sk`), RegisterUZ, ORSR, and Slovensko.Digital Datahub RUZ.
-Merges name, IČO, seat, DIČ and other public fields. Database cache is optional.
+When `APINO_API_KEY` is set on the server, also queries Apino.sk RPO (org + people/štatutári).
+Merges name, IČO, seat, DIČ, people and other public fields. Database cache is optional.
+Never put the Apino key in frontend code or git — only `.env` / host secrets.
 
 Request body:
 ```json
