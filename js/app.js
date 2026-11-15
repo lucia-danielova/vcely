@@ -10,6 +10,7 @@ import {
   applySafeAreaClasses,
   setBottomNavActive
 } from './components/android-shell.js';
+import { bindSaasShell } from './components/saas-shell.js';
 
 const personaConfig = {
   BEE_PRO: {
@@ -237,18 +238,37 @@ function updatePersonaUi(personaKey) {
   if (userDisplay) userDisplay.textContent = persona.badge;
   if (roleDisplay) roleDisplay.textContent = persona.headerRole;
 
-  const activeModeBadge = $('active-mode-badge');
   const activeModeText = $('active-mode-text');
-  if (activeModeBadge) {
-    activeModeBadge.classList.remove('hidden');
-    activeModeBadge.classList.add('flex');
+  if (activeModeText && store.getState().interactionMode === 'NONE') {
+    activeModeText.textContent = persona.badge;
   }
-  if (activeModeText) activeModeText.textContent = persona.badge;
 
   const hobbyAssistant = $('hobby-simple-assistant');
   if (hobbyAssistant) {
     const isHobby = personaKey.includes('HOBBY');
     hobbyAssistant.classList.toggle('hidden', !isHobby);
+  }
+
+  const mode = personaKey === 'BEE_PRO' || personaKey === 'BEEKEEPER'
+    ? 'beekeeper'
+    : (personaKey === 'AGRO_PRO' || personaKey === 'AGRO' ? 'farmer' : 'hobby');
+  document.body.dataset.mode = mode;
+  document.body.classList.remove('mode-hobby', 'mode-farmer', 'mode-beekeeper');
+  document.body.classList.add(`mode-${mode}`);
+  document.querySelectorAll('[data-dashboard-mode]').forEach((button) => {
+    button.classList.toggle('is-active', button.getAttribute('data-dashboard-mode') === mode);
+  });
+  if (mode === 'beekeeper') {
+    const radii = $('layer-hive-radii');
+    const hives = $('layer-hives');
+    if (hives && !hives.checked) {
+      hives.checked = true;
+      toggleHivesLayer(true);
+    }
+    if (radii && !radii.checked) {
+      radii.checked = true;
+      toggleHiveRadiiLayer(true);
+    }
   }
 }
 
@@ -292,6 +312,7 @@ function openLandingPortal() {
   overlay.classList.remove('landing-hidden');
   overlay.scrollTop = 0;
   appState.landingVisible = true;
+  document.body.classList.remove('map-app-open');
   relocateMapStage('landing-map-frame');
   setBottomNavActive('home');
   emitLandingChanged(true);
@@ -300,9 +321,10 @@ function openLandingPortal() {
 function closeLandingPortal() {
   const overlay = $('landing-portal-overlay');
   if (!overlay) return;
+  document.body.classList.add('map-app-open');
+  relocateMapStage('map-mount');
   overlay.classList.add('landing-hidden');
   appState.landingVisible = false;
-  relocateMapStage('map-mount');
   setBottomNavActive('map');
   emitLandingChanged(false);
 }
@@ -349,6 +371,10 @@ function switchSidebarTab(tabName) {
     }
 
     if (panel) panel.classList.toggle('hidden', tab !== tabName);
+  });
+
+  document.querySelectorAll('[data-rail]').forEach((button) => {
+    button.classList.toggle('is-active', button.getAttribute('data-rail') === tabName);
   });
 }
 
@@ -708,6 +734,7 @@ async function handleEntityVerification() {
     </div>
   `;
 
+  $('analysis-result-panel')?.classList.add('is-visible');
   showToast(`Sídlo subjektu ${match.name} je zobrazené na mape`, 'success');
 }
 
@@ -735,14 +762,15 @@ function quickSearchParcel(register, ku, parcel) {
   showToast(`Parcelné vyhľadanie: ${register}-KN ${parcel} ${ku}`, 'info');
 }
 
-function handleCadastreParcelSearch() {
+async function handleCadastreParcelSearch() {
   const ku = $('cadastre-ku-input')?.value || 'Petržalka';
   const parcel = $('cadastre-parcel-input')?.value || '1204/1';
   const panel = $('analysis-content');
   const register = store.getState().selectedCadastreRegister || 'C';
+  const spinner = $('cadastre-spinner');
 
   if (!panel) return;
-  const match = store.getState().cadastreParcels.find((entry) => {
+  let match = store.getState().cadastreParcels.find((entry) => {
     const sameRegister = entry.register === register;
     const sameParcel = entry.parcelNumber && entry.parcelNumber.toString() === parcel.trim();
     const sameKu = entry.kuName && entry.kuName.toLowerCase().includes(ku.toLowerCase());
@@ -750,7 +778,19 @@ function handleCadastreParcelSearch() {
   });
 
   if (!match) {
+    if (spinner) spinner.classList.remove('hidden');
+    try {
+      match = await publicApi.fetchCadastreParcel(register, ku, parcel);
+    } catch (error) {
+      match = null;
+    } finally {
+      if (spinner) spinner.classList.add('hidden');
+    }
+  }
+
+  if (!match) {
     panel.innerHTML = `<div class="text-amber-700 font-bold">Parcela ${register}-KN ${parcel} v katastrálnom území ${ku} nebola nájdená.</div>`;
+    $('analysis-result-panel')?.classList.add('is-visible');
     showToast('Katasterové vyhľadanie nebolo nájdené', 'warning');
     return;
   }
@@ -759,6 +799,17 @@ function handleCadastreParcelSearch() {
     appMapEngine.renderCadastreParcel(match);
   }
 
+  const facts = appMapEngine && match.center
+    ? appMapEngine.inspectorFactsHtml({
+      parcelNumber: `KN-${match.register} ${match.parcelNumber}`,
+      owner: match.vlastnik || 'Evidovaný na liste vlastníctva',
+      crop: match.druhPozemku || match.vyuzitie || '—',
+      lat: match.center[0],
+      lng: match.center[1],
+      ring: match.coords
+    })
+    : '';
+
   panel.innerHTML = `
     <div class="space-y-2">
       <div class="font-extrabold text-sky-800 uppercase tracking-wider">Kataster SR</div>
@@ -766,8 +817,10 @@ function handleCadastreParcelSearch() {
       <div>Parcela: <span class="font-mono text-slate-800">${match.parcelNumber}</span></div>
       <div>Výmera: <span class="text-emerald-700 font-bold">${match.areaHa} ha</span></div>
       <div>Stav: <span class="text-emerald-700 font-bold">Parcelná vrstva pripravená</span></div>
+      ${facts}
     </div>
   `;
+  $('analysis-result-panel')?.classList.add('is-visible');
 
   showToast(`Parcelná vrstva ${match.register}-KN ${match.parcelNumber} bola načítaná`, 'success');
 }
@@ -1480,14 +1533,17 @@ async function deleteUserProfile() {
 
 function toggleLpisLayer(checked) {
   store.setState({ isLpisLayerVisible: checked });
+  if (appMapEngine) appMapEngine.renderLpisParcels(store.getState().activeEntity?.ico || null);
 }
 
 function toggleHivesLayer(checked) {
   store.setState({ isHivesLayerVisible: checked });
+  if (appMapEngine) appMapEngine.renderAllHives();
 }
 
 function toggleHiveRadiiLayer(checked) {
   store.setState({ isHiveRadiiVisible: checked });
+  if (appMapEngine) appMapEngine.renderAllHives();
 }
 
 function toggleKatasterLayer(checked) {
@@ -1919,6 +1975,7 @@ function initUi() {
   const userDashboardModal = $('user-dashboard-modal');
   if (authModal) authModal.classList.add('hidden');
   if (userDashboardModal) userDashboardModal.classList.add('hidden');
+  bindSaasShell();
 
   const closeButtons = document.querySelectorAll('[data-close-modal]');
   closeButtons.forEach((button) => {
