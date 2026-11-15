@@ -11,6 +11,7 @@ on:
       - 'www/**'
       - 'capacitor.config.json'
       - 'package.json'
+      - 'package-lock.json'
       - 'index.html'
       - 'js/**'
       - 'css/**'
@@ -39,8 +40,16 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # Default packages include obsolete "tools" which sdkmanager no longer finds.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform and build-tools
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          yes | sdkmanager --licenses >/dev/null || true
 
       - name: Install dependencies
         run: npm ci
@@ -55,10 +64,11 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: vcely-android-debug
           path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
