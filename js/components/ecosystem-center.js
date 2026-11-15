@@ -1,5 +1,6 @@
 import { store } from '../core/state-store.js';
 import { AgroApiService } from '../services/api.js';
+import { OfflineSyncService } from '../services/offline-sync.js';
 import { escapeHtml } from './saas-shell.js';
 
 const VARROA_KEY = 'vcely_varroa_v1';
@@ -374,16 +375,41 @@ function fillSprayParcels() {
     syncSprayParcelFields();
 }
 
-function paintSprayRadar() {
+async function paintSprayRadar() {
     const host = document.getElementById('spray-collision-radar');
     const button = document.getElementById('spray-alert-beekeepers');
     if (!host) return;
     const point = selectedSprayPoint();
-    const rows = hivesNear(point.lat, point.lng);
-    const colonies = rows.reduce((sum, row) => sum + Number(row.hive.count || 0), 0);
+    let rows = hivesNear(point.lat, point.lng).map((row) => ({
+        name: row.hive.name,
+        count: Number(row.hive.count) || 0,
+        meters: row.meters
+    }));
+    const sb = window.__VCELY_SUPABASE__;
+    if (sb?.configured && sb?.client) {
+        try {
+            const remote = await OfflineSyncService.executeSpatialCollisionCheck(
+                sb.client,
+                true,
+                point.lat,
+                point.lng,
+                3000
+            );
+            if (Array.isArray(remote) && remote.length) {
+                rows = remote.map((row) => ({
+                    name: row.hive_name || row.name || 'Včelnica',
+                    count: Number(row.hive_count || row.count) || 0,
+                    meters: Number(row.distance_meters) || 0
+                }));
+            }
+        } catch {
+            /* keep local haversine rows */
+        }
+    }
+    const colonies = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
     const sites = rows.length === 1 ? 'stanovište' : rows.length < 5 ? 'stanovištia' : 'stanovíšť';
     const list = rows.length
-        ? `<ul>${rows.map((row) => `<li>🐝 ${escapeHtml(row.hive.name)} (${escapeHtml(String(row.hive.count))} rodín) · ${(row.meters / 1000).toFixed(2)} km</li>`).join('')}</ul>`
+        ? `<ul>${rows.map((row) => `<li>🐝 ${escapeHtml(row.name)} (${escapeHtml(String(row.count))} rodín) · ${(row.meters / 1000).toFixed(2)} km</li>`).join('')}</ul>`
         : '<p class="eco-radar-ok">V okruhu 3 km nie je evidovaná včelnica.</p>';
     host.innerHTML = `
         <b>Automatický radar kolízií (3 km)</b>
