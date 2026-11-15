@@ -227,7 +227,7 @@ function buildReportPdf(lines) {
     const objects = [
         '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
         '2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj',
-        '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> endobj',
+        '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj',
         `4 0 obj << /Length ${streamLength} >> stream\n${stream}\nendstream endobj`,
         '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj'
     ];
