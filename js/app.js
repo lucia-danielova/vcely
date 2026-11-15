@@ -1071,12 +1071,16 @@ function showFarmerShield(entity) {
   const shield = $('farmer-verified-shield');
   if (!shield || !entity) return;
   const seat = entity.address || entity.city || 'Sídlo';
-  const live = /RegisterUZ|RÚZ/.test(entity.source || '');
+  const source = entity.source || '';
+  const live = /RPO|RegisterUZ|RÚZ|ORSR|statistics\.sk|Slovensko\.Digital|datahub|sluzby\.orsr/i.test(source);
   shield.textContent = live
-    ? `Overené v RÚZ: ${entity.ico || 'IČO'} • ${seat}`
+    ? `Overené vo verejných registroch (${source}): ${entity.ico || 'IČO'} • ${seat}`
     : `Vybraný subjekt: ${entity.ico || 'IČO'} • ${seat}`;
   shield.classList.remove('hidden');
 }
+
+let companySuggestTimer = null;
+let companySuggestToken = 0;
 
 async function renderCompanySuggestions(query = '') {
   const suggestions = $('reg-company-suggestions');
@@ -1102,26 +1106,61 @@ async function renderCompanySuggestions(query = '') {
     })
     .slice(0, 5);
 
-  const digits = value.replace(/\s/g, '');
-  if (/^\d{6,8}$/.test(digits)) {
+  const token = ++companySuggestToken;
+  suggestions.innerHTML = '<div class="px-2 py-2 text-[11px] text-slate-500">Hľadám v ŠÚ SR, RegisterUZ, ORSR a Slovensko.Digital…</div>';
+  suggestions.classList.remove('hidden');
+
+  clearTimeout(companySuggestTimer);
+  await new Promise((resolve) => {
+    companySuggestTimer = setTimeout(resolve, 280);
+  });
+  if (token !== companySuggestToken) return;
+
+  try {
+    let liveHits = [];
     try {
-      const live = await publicApi.fetchEntityByICO(digits);
-      if (live && !hits.some((item) => item.ico === live.ico)) hits.unshift(live);
+      liveHits = await backendApi.searchEntities(value);
     } catch (error) {
-      console.warn('RegisterUZ lookup failed:', error);
+      if (!backendApi.isUnavailable?.(error)) {
+        console.warn('Backend registry search failed:', error);
+      }
     }
+    if (!liveHits?.length) {
+      liveHits = await publicApi.searchRegistry(value);
+    }
+    for (const live of liveHits || []) {
+      if (!live?.name) continue;
+      const idx = hits.findIndex((item) => item.ico && live.ico && String(item.ico) === String(live.ico));
+      if (idx >= 0) hits[idx] = { ...hits[idx], ...live };
+      else hits.unshift(live);
+      if (live.ico) store.upsertEntity(live);
+    }
+  } catch (error) {
+    console.warn('Public registry search failed:', error);
   }
 
-  if (!hits.length) {
-    suggestions.innerHTML = '<div class="px-2 py-2 text-[11px] text-slate-500">Nenašli sa žiadne oficiálne subjekty.</div>';
+  if (token !== companySuggestToken) return;
+
+  const unique = [];
+  const seen = new Set();
+  for (const entity of hits) {
+    const key = String(entity.ico || entity.name || '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(entity);
+  }
+
+  if (!unique.length) {
+    suggestions.innerHTML = '<div class="px-2 py-2 text-[11px] text-slate-500">Nenašli sa žiadne oficiálne subjekty vo verejných registroch.</div>';
     suggestions.classList.remove('hidden');
     return;
   }
 
-  suggestions.innerHTML = hits.map((entity) => `
+  suggestions.innerHTML = unique.slice(0, 8).map((entity) => `
     <button type="button" class="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-left transition hover:bg-emerald-100" data-entity-ico="${entity.ico || ''}" data-entity-name="${escapeHtml(entity.name || '')}" data-entity-address="${escapeHtml(entity.address || '')}" data-entity-source="${escapeHtml(entity.source || '')}">
       <div class="font-bold text-slate-900">${escapeHtml(entity.name || 'Neznámy subjekt')}</div>
       <div class="mt-0.5 text-[10px] text-slate-600">${escapeHtml(entity.ico || 'IČO neznáme')} · ${escapeHtml(entity.city || entity.address || 'Sídlo neuvedené')}</div>
+      <div class="mt-0.5 text-[9px] text-emerald-700">${escapeHtml(entity.source || 'Verejný register')}</div>
     </button>
   `).join('');
 
@@ -1133,13 +1172,14 @@ async function renderCompanySuggestions(query = '') {
       const searchValue = button.getAttribute('data-entity-name') || '';
       const addressValue = button.getAttribute('data-entity-address') || '';
       const icoValue = button.getAttribute('data-entity-ico') || '';
+      const sourceValue = button.getAttribute('data-entity-source') || '';
 
       if (nameInput) nameInput.value = searchValue;
       if (addressInput) addressInput.value = addressValue;
       if (icoInput) icoInput.value = icoValue;
       if (input) input.value = searchValue;
       suggestions.classList.add('hidden');
-      showFarmerShield({ ico: icoValue, address: addressValue, name: searchValue, source: button.getAttribute('data-entity-source') || '' });
+      showFarmerShield({ ico: icoValue, address: addressValue, name: searchValue, source: sourceValue });
       showToast(`Vybraný subjekt: ${searchValue}`, 'success');
     });
   });
@@ -1190,28 +1230,62 @@ function handleCommunityMapClick(event) {
   writeRegistrationPin(event.latlng);
 }
 
-function autofillRegistrationFromICO() {
+async function autofillRegistrationFromICO() {
   const value = $('reg-ico')?.value?.trim();
   if (!value) {
     showToast('Zadajte najprv IČO pre automatické doplnenie údajov', 'warning');
     return;
   }
 
-  const match = store.getState().entities.find((entity) => normalizeQuery(entity.ico) === normalizeQuery(value));
+  const digits = value.replace(/\D/g, '');
+  if (!/^\d{6,10}$/.test(digits)) {
+    showToast('IČO musí obsahovať 6 až 10 číslic', 'warning');
+    return;
+  }
+
+  showToast('Hľadám subjekt v ŠÚ SR, RegisterUZ, ORSR a Slovensko.Digital…', 'info');
+
+  const localMatch = store.getState().entities.find((entity) => {
+    const ico = String(entity.ico || '').replace(/\D/g, '');
+    return ico === digits || ico.padStart(8, '0') === digits.padStart(8, '0');
+  });
+
+  let match = null;
+  try {
+    match = await backendApi.verifyEntity(digits);
+  } catch (error) {
+    if (!backendApi.isUnavailable?.(error) && error.status !== 404) {
+      console.warn('Backend verify-entity failed:', error);
+    }
+  }
+
   if (!match) {
-    showToast('IČO nebolo nájdené v lokálnom registri', 'warning');
+    try {
+      match = await publicApi.fetchEntityByICO(digits);
+    } catch (error) {
+      console.warn('Public registry IČO lookup failed:', error);
+    }
+  }
+
+  if (!match) match = localMatch;
+
+  if (!match?.name) {
+    showToast('IČO sa nenašlo vo verejných registroch. Skontrolujte číslo alebo doplňte údaje ručne.', 'warning');
     return;
   }
 
   const nameInput = $('reg-name');
   const addressInput = $('reg-address');
+  const icoInput = $('reg-ico');
+  if (icoInput && match.ico) icoInput.value = match.ico;
   if (nameInput) nameInput.value = match.name;
-  if (addressInput) addressInput.value = match.address;
+  if (addressInput) addressInput.value = match.address || match.city || '';
   const companySearch = $('farmer-registry-search');
   if (companySearch) companySearch.value = match.name;
+  store.upsertEntity(match);
   showFarmerShield(match);
 
-  showToast(`Údaje pre ${match.name} boli doplnené automaticky`, 'success');
+  showToast(`Údaje pre ${match.name} doplnené z ${match.source || 'verejných registrov'}`, 'success');
 }
 
 function quickDemoLogin(email, password) {
