@@ -107,8 +107,8 @@ body.saas-app.map-app-open #left-sidebar {
     pointer-events: auto;
     overflow: hidden;
     padding: 0;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 body.saas-app.map-app-open #left-sidebar.w-0,
@@ -373,7 +373,9 @@ body.saas-app[data-mode="beekeeper"] .saas-beekeeper-only {
 }
 
 body.saas-app[data-mode="hobby"] .saas-technical-register,
-body.saas-app[data-mode="hobby"] .saas-official-export {
+body.saas-app[data-mode="hobby"] .saas-official-export,
+body.saas-app[data-mode="beekeeper"] .saas-technical-register,
+body.saas-app[data-mode="beekeeper"] .saas-official-export {
     display: none !important;
 }
 
@@ -532,8 +534,8 @@ body.saas-app.map-app-open #weather-safety-wrap {
     border-radius: 999px;
     padding: 8px 10px 8px 12px;
     background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     color: #f8faf8;
@@ -605,8 +607,8 @@ body.saas-app.map-app-open #weather-safety-wrap {
     padding: 12px 14px;
     border-radius: 16px;
     background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     color: #e8f2eb;
@@ -653,8 +655,8 @@ body.saas-app.map-app-open #active-mode-badge {
     gap: 6px;
     padding: 6px;
     pointer-events: auto;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 #saas-layer-bar button {
@@ -726,8 +728,8 @@ body.saas-app.map-app-open #analysis-result-panel {
     opacity: 0;
     transform: translateY(10px);
     transition: opacity 0.28s ease, transform 0.28s ease;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 body.saas-app.map-app-open #analysis-result-panel.is-visible {
@@ -782,8 +784,8 @@ body.saas-app.map-app-open #map-tool-rail {
     pointer-events: auto;
     max-height: calc(100vh - 220px);
     overflow: auto;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 body.saas-app.map-app-open #map-tool-rail button {
@@ -808,14 +810,54 @@ body.saas-app.map-app-open #geo-coord-pill {
     padding: 8px 12px;
     cursor: pointer;
     pointer-events: auto;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: #e8f2eb;
 }
 
-body.saas-app.map-app-open #geo-coord-pill #footer-latlng,
-body.saas-app.map-app-open #geo-coord-pill #footer-zoom {
+.geo-pill-summary {
+    font-family: "Manrope", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+body.saas-app.map-app-open #geo-coord-pill .geo-pill-details,
+body.saas-app.map-app-open #geo-coord-pill #geo-coord-copy {
+    display: none;
+}
+
+body.saas-app.map-app-open #geo-coord-pill.is-open {
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: min(420px, calc(100vw - 32px));
+}
+
+body.saas-app.map-app-open #geo-coord-pill.is-open .geo-pill-summary {
+    display: none;
+}
+
+body.saas-app.map-app-open #geo-coord-pill.is-open .geo-pill-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+body.saas-app.map-app-open #geo-coord-pill.is-open #footer-latlng,
+body.saas-app.map-app-open #geo-coord-pill.is-open #footer-zoom {
     display: inline !important;
+}
+
+body.saas-app.map-app-open #geo-coord-pill.is-open #geo-coord-copy {
+    display: inline-flex;
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: #f59e0b;
+    color: #1c1403;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
 }
 
 body.saas-app.map-app-open #geo-coord-pill #footer-jtsk,
@@ -823,6 +865,30 @@ body.saas-app.map-app-open #geo-coord-pill #footer-latlng,
 body.saas-app.map-app-open #geo-coord-pill #footer-scale,
 body.saas-app.map-app-open #geo-coord-pill #footer-zoom {
     color: #e8f2eb;
+}
+
+.saas-fab-menu {
+    display: none;
+    position: fixed;
+    right: 16px;
+    bottom: calc(146px + env(safe-area-inset-bottom));
+    z-index: 34;
+    flex-direction: column;
+    gap: 8px;
+    width: min(220px, calc(100vw - 32px));
+}
+
+.saas-fab-menu button {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 14px;
+    padding: 10px 12px;
+    background: rgba(22, 34, 24, 0.9);
+    color: #f8faf8;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
 }
 
 .saas-geo-fab {
@@ -879,11 +945,20 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
 }
 
 .hive-radius-honey {
-    filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.9));
+    fill: url(#hive-amber-fade) !important;
+    stroke: #F59E0B !important;
+    stroke-dasharray: 8 7;
+    stroke-width: 1.5px;
+    filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.55));
 }
 
-.hive-radius-warning {
-    filter: drop-shadow(0 0 7px rgba(249, 115, 22, 0.95));
+.hive-radius-warning,
+.lpis-collision-hatch {
+    fill: url(#hive-hatch) !important;
+    stroke: #e11d48 !important;
+    stroke-dasharray: 4 5;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 6px rgba(225, 29, 72, 0.65));
 }
 
 @media (max-width: 1279px) and (min-width: 768px) {
@@ -1018,6 +1093,14 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
     body.saas-app.map-app-open .saas-geo-fab {
         display: flex;
         bottom: calc(var(--sheet-h, 46vh) + 74px);
+    }
+
+    body.saas-app.map-app-open #saas-fab-menu {
+        bottom: calc(var(--sheet-h, 46vh) + 142px);
+    }
+
+    body.saas-app.map-app-open #saas-fab-menu:not([hidden]) {
+        display: flex;
     }
 
     body.saas-app.map-app-open #geo-coord-pill {

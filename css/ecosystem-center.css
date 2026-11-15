@@ -1,0 +1,418 @@
+/* Forest & Honey command center and the two professional modals.
+   Layout chrome stays in saas-dashboard.css. These rules only restyle
+   the post-login dashboard, the spray book, and the apiary form. */
+
+#user-dashboard-modal,
+#spray-book-modal,
+#hive-modal {
+    background: rgba(6, 12, 8, 0.55);
+}
+
+#user-dashboard-modal .eco-command-shell > div:first-child > div:first-child {
+    min-width: 240px;
+    flex: 1 1 240px;
+}
+
+#dash-user-name {
+    white-space: normal;
+}
+
+body:has(#user-dashboard-modal:not(.hidden)) #toast-container,
+body:has(#spray-book-modal:not(.hidden)) #toast-container,
+body:has(#hive-modal:not(.hidden)) #toast-container {
+    top: auto;
+    bottom: 24px;
+    z-index: 60;
+}
+
+#user-dashboard-modal .eco-command-shell,
+.eco-spray-shell,
+.eco-hive-shell {
+    width: min(1120px, 95vw);
+    max-width: 1120px;
+    max-height: 90vh;
+    background: rgba(16, 26, 19, 0.94) !important;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 24px !important;
+    color: #e7f3ea;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.eco-spray-shell,
+.eco-hive-shell {
+    width: min(640px, 95vw);
+    max-width: 640px;
+}
+
+#user-dashboard-modal .bg-stone-100,
+#user-dashboard-modal .bg-stone-50,
+#user-dashboard-modal .bg-stone-50\/50,
+#user-dashboard-modal .bg-white,
+#spray-book-modal .bg-white,
+#spray-book-modal .bg-stone-50,
+#hive-modal .bg-white,
+#hive-modal .bg-stone-50,
+#hive-modal .bg-stone-100 {
+    background-color: transparent;
+    color: inherit;
+}
+
+#user-dashboard-modal .border-stone-200,
+#user-dashboard-modal .border-stone-100,
+#user-dashboard-modal .border-stone-300,
+#spray-book-modal .border-stone-200,
+#spray-book-modal .border-stone-300,
+#hive-modal .border-stone-200,
+#hive-modal .border-stone-300 {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+#user-dashboard-modal .text-slate-900,
+#user-dashboard-modal .text-slate-800,
+#user-dashboard-modal .text-slate-700,
+#user-dashboard-modal .text-slate-600,
+#user-dashboard-modal .text-slate-500,
+#spray-book-modal .text-slate-900,
+#spray-book-modal .text-slate-700,
+#spray-book-modal .text-slate-600,
+#hive-modal .text-slate-900,
+#hive-modal .text-slate-700,
+#hive-modal .text-slate-500,
+#hive-modal .text-amber-800 {
+    color: #e7f3ea;
+}
+
+#user-dashboard-modal .eco-card,
+#user-dashboard-modal #dash-my-parcels-list button,
+#user-dashboard-modal #dash-my-hives-list button,
+#user-dashboard-modal #dash-alerts-table > div {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 16px;
+    color: #e7f3ea;
+}
+
+#user-dashboard-modal > div > div:first-child,
+#user-dashboard-modal .eco-command-shell > div:first-child {
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+#dash-avatar {
+    background: rgba(16, 185, 129, 0.16);
+    border-color: rgba(16, 185, 129, 0.45);
+}
+
+.eco-command-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.eco-verified,
+.eco-score {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 6px 12px;
+    background: rgba(16, 185, 129, 0.16);
+    border: 1px solid #22c55e;
+    color: #bbf7d0;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.eco-score small,
+.eco-verified small {
+    font-weight: 700;
+    color: #86efac;
+}
+
+.eco-score.is-caution {
+    background: rgba(245, 158, 11, 0.16);
+    border-color: #f59e0b;
+    color: #fde68a;
+}
+
+.eco-score.is-risk {
+    background: rgba(225, 29, 72, 0.18);
+    border-color: #fb7185;
+    color: #fecdd3;
+}
+
+.eco-export,
+.eco-gold-btn {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+    color: #1c1403;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(245, 158, 11, 0.28);
+}
+
+.eco-export:hover,
+.eco-gold-btn:hover {
+    filter: brightness(1.05);
+}
+
+#user-dashboard-modal .flex.border-b.bg-stone-50 {
+    background: transparent;
+}
+
+#user-dashboard-modal [id^="dash-tab-btn-"] {
+    color: rgba(231, 243, 234, 0.62);
+}
+
+#user-dashboard-modal [id^="dash-tab-btn-"].border-emerald-600 {
+    color: #fde68a;
+}
+
+#user-dashboard-modal input,
+#user-dashboard-modal select,
+#spray-book-modal input,
+#spray-book-modal select,
+#hive-modal input,
+#hive-modal select {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #f8faf8 !important;
+    border-radius: 12px;
+}
+
+.eco-widgets {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.eco-widget,
+.eco-radar-box {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 12px;
+}
+
+.eco-widget header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: baseline;
+    margin-bottom: 8px;
+}
+
+.eco-widget h3,
+.eco-radar-box b {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8faf8;
+}
+
+.eco-widget small,
+.eco-widget-note,
+.eco-radar-box p,
+.eco-shield-line {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: rgba(231, 243, 234, 0.78);
+}
+
+.eco-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 92px;
+    padding-top: 8px;
+}
+
+.eco-chart span {
+    flex: 1 1 0;
+    min-width: 0;
+    border-radius: 4px 4px 2px 2px;
+    background: #22c55e;
+    position: relative;
+}
+
+.eco-chart span[data-level="caution"] { background: #f59e0b; }
+.eco-chart span[data-level="banned"] { background: #e11d48; }
+.eco-chart span[data-level="safe"] { background: #22c55e; }
+
+.eco-chart span i {
+    position: absolute;
+    left: 50%;
+    bottom: -14px;
+    transform: translateX(-50%);
+    font-style: normal;
+    font-size: 8px;
+    color: rgba(231, 243, 234, 0.55);
+    white-space: nowrap;
+}
+
+.eco-chart {
+    margin-bottom: 14px;
+}
+
+.eco-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.eco-bar-row {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 11px;
+}
+
+.eco-bar-row b { font-weight: 800; }
+.eco-bar-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+.eco-bar-track i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #f59e0b, #fde68a);
+}
+
+.eco-shield-line strong {
+    color: #86efac;
+}
+
+.eco-shield-line.is-caution strong { color: #fde68a; }
+.eco-shield-line.is-risk strong { color: #fecdd3; }
+
+#eco-collision-sim {
+    width: 100%;
+}
+
+.eco-choice-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.eco-choice-row button,
+.eco-stepper button,
+.eco-gps-btn {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.05);
+    color: #e7f3ea;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.eco-choice-row button.is-on {
+    background: rgba(16, 185, 129, 0.22);
+    border-color: #22c55e;
+    color: #bbf7d0;
+}
+
+.eco-choice-row button.is-on[data-tox="caution"] {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: #f59e0b;
+    color: #fde68a;
+}
+
+.eco-choice-row button.is-on[data-tox="risk"] {
+    background: rgba(225, 29, 72, 0.22);
+    border-color: #fb7185;
+    color: #fecdd3;
+}
+
+.eco-radar-box ul {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.eco-radar-box li {
+    font-size: 12px;
+}
+
+.eco-hive-loc {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 6px;
+    align-items: center;
+}
+
+.eco-lock {
+    border-radius: 999px;
+    padding: 6px 8px;
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid #22c55e;
+    color: #bbf7d0;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.eco-stepper {
+    display: grid;
+    grid-template-columns: 36px 1fr 36px;
+    gap: 6px;
+    align-items: center;
+}
+
+.eco-stepper button {
+    height: 36px;
+    padding: 0;
+    font-size: 18px;
+}
+
+.eco-radar-hot {
+    color: #fecdd3;
+    font-weight: 800;
+}
+
+.eco-radar-ok {
+    color: #86efac;
+    font-weight: 800;
+}
+
+body.eco-radar-live .hive-radius-honey,
+body.eco-radar-live .hive-radius-warning,
+.eco-radar-ring {
+    animation: eco-radar-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes eco-radar-pulse {
+    0%, 100% { stroke-opacity: 0.35; }
+    50% { stroke-opacity: 1; }
+}
+
+@media (max-width: 860px) {
+    .eco-widgets {
+        grid-template-columns: 1fr;
+    }
+    .eco-command-badges {
+        margin-left: 0;
+    }
+    .eco-hive-loc {
+        grid-template-columns: 1fr;
+    }
+}

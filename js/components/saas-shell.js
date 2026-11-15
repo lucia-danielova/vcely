@@ -58,7 +58,7 @@ export function classifyOmniboxQuery(raw, filter = '') {
     return { kind: 'place', query: value };
 }
 
-function escapeHtml(value) {
+export function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -384,6 +384,65 @@ function bindSheetDrag() {
     handle.addEventListener('pointercancel', endDrag);
 }
 
+function sprayLevel(temp, wind) {
+    const beeActive = temp >= 12;
+    if (wind > 5 || (beeActive && wind > 4 && temp >= 20)) return 'banned';
+    if (wind > 3 || temp > 25 || temp < 5 || (beeActive && wind > 3)) return 'caution';
+    return 'safe';
+}
+
+async function loadPillForecast() {
+    const host = document.getElementById('weather-forecast-24');
+    const caption = document.getElementById('weather-forecast-caption');
+    const map = window.agrogisMap?.map;
+    if (!host || !map) return;
+    const center = map.getCenter();
+    try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${center.lat.toFixed(4)}&longitude=${center.lng.toFixed(4)}&hourly=temperature_2m,wind_speed_10m&wind_speed_unit=ms&forecast_hours=24&timezone=Europe%2FBratislava`;
+        const response = await fetch(url);
+        const data = await response.json();
+        const times = data?.hourly?.time || [];
+        const temps = data?.hourly?.temperature_2m || [];
+        const winds = data?.hourly?.wind_speed_10m || [];
+        if (!times.length) throw new Error('empty hourly');
+        const hours = times.slice(0, 24).map((stamp, index) => ({
+            hour: String(new Date(stamp).getHours()).padStart(2, '0'),
+            temp: Number(temps[index]),
+            wind: Number(winds[index]),
+            level: sprayLevel(Number(temps[index]), Number(winds[index]))
+        }));
+        const min = Math.min(...hours.map((row) => row.temp));
+        const max = Math.max(...hours.map((row) => row.temp));
+        const span = Math.max(1, max - min);
+        host.innerHTML = hours.map((row, index) => {
+            const height = 22 + Math.round(((row.temp - min) / span) * 52);
+            const label = index % 4 === 0 ? `<i>${row.hour}</i>` : '';
+            return `<span data-level="${row.level}" style="height:${height}px" title="${row.hour}:00 ${row.temp.toFixed(1)}°C · ${row.wind.toFixed(1)} m/s">${label}</span>`;
+        }).join('');
+        const windows = [];
+        let start = null;
+        let end = null;
+        hours.forEach((row, index) => {
+            if (row.level !== 'safe') return;
+            if (start == null) start = row.hour;
+            end = row.hour;
+            const next = hours[index + 1];
+            if (!next || next.level !== 'safe') {
+                windows.push(start === end ? `${start}:00` : `${start}:00-${end}:00`);
+                start = null;
+                end = null;
+            }
+        });
+        if (caption) {
+            caption.textContent = windows.length
+                ? `Bezpečné okná: ${windows.join(', ')}`
+                : 'V najbližších 24 h nie je bezpečné okno postreku';
+        }
+    } catch (error) {
+        if (caption) caption.textContent = 'Open-Meteo teraz nevrátilo 24 h predpoveď.';
+    }
+}
+
 function bindWeatherCard() {
     const pill = document.getElementById('weather-safety-pill');
     const card = document.getElementById('weather-condition-card');
@@ -393,6 +452,37 @@ function bindWeatherCard() {
         const open = card.hidden;
         card.hidden = !open;
         pill.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) loadPillForecast();
+    });
+}
+
+function bindFieldFab() {
+    const fab = document.getElementById('saas-geo-fab');
+    const menu = document.getElementById('saas-fab-menu');
+    if (!fab || !menu || fab.dataset.bound === 'true') return;
+    fab.dataset.bound = 'true';
+    fab.addEventListener('click', () => {
+        menu.hidden = !menu.hidden;
+        fab.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+    });
+    document.getElementById('saas-fab-hive')?.addEventListener('click', () => {
+        menu.hidden = true;
+        fab.setAttribute('aria-expanded', 'false');
+        window.toggleAddHiveMode?.();
+    });
+    document.getElementById('saas-fab-spray')?.addEventListener('click', () => {
+        menu.hidden = true;
+        fab.setAttribute('aria-expanded', 'false');
+        if (!navigator.geolocation) {
+            window.showToast?.('GPS nie je podporované v tomto prehliadači', 'warning');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                window.agrogisMap?.checkSprayCollision?.(position.coords.latitude, position.coords.longitude);
+            },
+            () => window.showToast?.('Nepodarilo sa načítať GPS polohu', 'warning')
+        );
     });
 }
 
@@ -433,17 +523,26 @@ export function bindSaasShell() {
     bindOmnibox();
     bindWeatherCard();
     bindSheetDrag();
+    bindFieldFab();
 
     const coord = document.getElementById('geo-coord-pill');
     if (coord && coord.dataset.bound !== 'true') {
         coord.dataset.bound = 'true';
-        coord.addEventListener('click', () => {
-            copyCoordinates();
+        coord.addEventListener('click', (event) => {
+            if (event.target.closest('#geo-coord-copy')) {
+                copyCoordinates();
+                return;
+            }
+            const open = coord.classList.toggle('is-open');
+            coord.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
         coord.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                copyCoordinates();
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            if (coord.classList.contains('is-open')) copyCoordinates();
+            else {
+                coord.classList.add('is-open');
+                coord.setAttribute('aria-expanded', 'true');
             }
         });
     }
