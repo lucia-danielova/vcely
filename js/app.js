@@ -338,10 +338,10 @@ function mapVcelnicaRow(row) {
     name: row.nazov || row.name || 'Včelnica',
     count: Number(row.pocet_rodin ?? row.colony_count ?? row.count ?? 1) || 1,
     email: row.email || row.kontakt_email || row.contact_email || '',
-    cevz: row.cevz || '',
+    cevz: row.cevz || row.cevz_number || '',
     lat,
     lng,
-    siteType: row.typ_stanovista || row.site_type || 'permanent',
+    siteType: row.typ_stanovista || row.site_type || row.apiary_type || 'permanent',
     nectarTags: row.znaska || row.nectar_tags || ''
   };
 }
@@ -391,17 +391,20 @@ async function saveVcelnicaToSupabase(hive) {
   const lng = Number(hive.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   const payload = {
-    nazov: hive.name || 'Nové stanovište',
-    pocet_rodin: Number(hive.count) || 1,
+    name: hive.name || 'Nové stanovište',
+    colony_count: Number(hive.count) || 1,
     lat,
     lng,
-    cevz: hive.cevz || null,
-    email: hive.email || null,
-    typ_stanovista: hive.siteType || 'permanent',
-    znaska: hive.nectarTags || null,
+    cevz_number: hive.cevz || null,
+    nectar_tags: hive.nectarTags || null,
+    apiary_type: hive.siteType || 'permanent',
     geom: { type: 'Point', coordinates: [lng, lat] }
   };
-  const { data, error } = await supabaseClient.from('vcelnice').insert(payload).select('id').maybeSingle();
+  let { data, error } = await supabaseClient.from('vcelnice').insert(payload).select('id').maybeSingle();
+  if (error) {
+    delete payload.geom;
+    ({ data, error } = await supabaseClient.from('vcelnice').insert(payload).select('id').maybeSingle());
+  }
   if (error) {
     showToast('Včelnicu sa nepodarilo uložiť do Supabase', 'warning');
     return null;
@@ -413,23 +416,23 @@ async function saveSprayEvidenceToSupabase(entry) {
   if (!supabaseClient || !entry) return null;
   const lat = Number(entry.lat);
   const lng = Number(entry.lng);
-  const when = entry.when ? new Date(entry.when) : new Date();
   const payload = {
-    parcela: entry.parcel || '',
-    vymera_ha: Number(entry.areaHa) || 0,
-    pripravok: entry.product || '',
-    vietor_ms: Number(entry.windMs) || 0,
-    teplota_c: Number(entry.tempC) || 0,
-    cas_aplikacie: Number.isNaN(when.getTime()) ? new Date().toISOString() : when.toISOString(),
-    toxicita: entry.toxicity || 'safe',
-    okno: entry.sprayWindow || 'evening',
+    parcel_id: entry.parcel || 'mapa',
+    pesticide_name: entry.product || '',
+    toxicity_level: entry.toxicity || 'safe',
+    time_window: entry.sprayWindow || 'evening',
+    crop_name: entry.crop || null,
     lat: Number.isFinite(lat) ? lat : null,
     lng: Number.isFinite(lng) ? lng : null
   };
   if (Number.isFinite(lat) && Number.isFinite(lng)) {
     payload.geom = { type: 'Point', coordinates: [lng, lat] };
   }
-  const { error } = await supabaseClient.from('evidencia_postrekov').insert(payload);
+  let { error } = await supabaseClient.from('evidencia_postrekov').insert(payload);
+  if (error && payload.geom) {
+    delete payload.geom;
+    ({ error } = await supabaseClient.from('evidencia_postrekov').insert(payload));
+  }
   if (error) {
     showToast('Hlásenie postreku ostalo v knihe. Supabase ho teraz neprijala.', 'warning');
     return null;
