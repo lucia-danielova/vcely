@@ -591,6 +591,10 @@ function toggleMeasureMode() {
   showToast('Merač vzdialenosti je zapnutý', 'info');
 }
 
+function revealInspector() {
+  $('analysis-result-panel')?.classList.add('is-visible');
+}
+
 function locateUserGPS() {
   if (!navigator.geolocation) {
     showToast('GPS nie je podporované v tomto prehliadači', 'warning');
@@ -610,6 +614,7 @@ function locateUserGPS() {
             <div>Lng: <span class="font-mono text-slate-800">${lng}</span></div>
           </div>
         `;
+        revealInspector();
       }
       showToast('GPS poloha bola načítaná', 'success');
     },
@@ -628,6 +633,7 @@ function clearAllMapAnalyses() {
   const content = $('analysis-content');
   if (content) {
     content.innerHTML = '<div class="text-slate-500 italic">Mapa je pripravená na nový prieskum.</div>';
+    revealInspector();
   }
   if (appMapEngine) appMapEngine.clearAnalyses();
   showToast('Všetky analýzy boli vyčistené', 'info');
@@ -667,6 +673,7 @@ async function handleEntityVerification() {
   if (!panel) return;
   if (!value) {
     panel.innerHTML = '<div class="text-rose-700 font-bold">Zadajte IČO, obec alebo názov subjektu.</div>';
+    revealInspector();
     showToast('Vyplňte pole pre overenie subjektu', 'warning');
     return;
   }
@@ -705,6 +712,7 @@ async function handleEntityVerification() {
 
   if (!match) {
     panel.innerHTML = `<div class="text-amber-700 font-bold">Nenašiel sa subjekt pre: <span class="font-mono text-slate-800">${escapeHtml(value)}</span></div>`;
+    revealInspector();
     showToast('Subjekt nebol nájdený v lokálnom registri.', 'warning');
     return;
   }
@@ -734,7 +742,7 @@ async function handleEntityVerification() {
     </div>
   `;
 
-  $('analysis-result-panel')?.classList.add('is-visible');
+  revealInspector();
   showToast(`Sídlo subjektu ${match.name} je zobrazené na mape`, 'success');
 }
 

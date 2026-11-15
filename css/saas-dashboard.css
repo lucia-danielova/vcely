@@ -81,7 +81,6 @@ body.saas-app.map-app-open #app-workspace .fixed {
 
 .glass-panel,
 body.saas-app.map-app-open #left-sidebar,
-body.saas-app.map-app-open #weather-safety-wrap,
 body.saas-app.map-app-open #saas-layer-bar,
 body.saas-app.map-app-open #analysis-result-panel,
 body.saas-app.map-app-open #geo-coord-pill,
@@ -478,24 +477,57 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 32;
+    z-index: 24;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
     width: max-content;
     max-width: min(760px, calc(100vw - 400px));
-    pointer-events: auto;
+    pointer-events: none;
     background: transparent;
     border: 0;
     box-shadow: none;
+}
+
+body.saas-app.map-app-open #weather-safety-wrap {
+    top: 84px;
+    left: 392px;
+    right: 78px;
+    width: auto;
+    max-width: none;
+    transform: none;
+    align-items: center;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+@media (min-width: 1280px) {
+    body.saas-app.map-app-open #weather-safety-wrap {
+        top: 16px;
+        right: 456px;
+        overflow: hidden;
+    }
+}
+
+#weather-safety-pill,
+#weather-condition-card {
+    pointer-events: auto;
 }
 
 #weather-safety-pill {
     display: flex;
     align-items: center;
     gap: 8px;
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
     border: 0;
     border-radius: 999px;
     padding: 8px 10px 8px 12px;
@@ -512,6 +544,7 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 #weather-place {
     font-size: 12px;
     font-weight: 800;
+    min-width: 0;
     max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -520,6 +553,9 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 
 #weather-temp,
 #weather-wind {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 12px;
     white-space: nowrap;
     color: #e8f2eb;
@@ -528,11 +564,19 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 .saas-spray-badge,
 #weather-spray-status {
     margin-left: auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     border-radius: 999px;
     padding: 4px 8px;
     font-size: 10px;
     font-weight: 800;
     white-space: nowrap;
+}
+
+#weather-spray-status {
+    flex-shrink: 0;
 }
 
 #weather-spray-status.is-safe,
@@ -557,7 +601,7 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 }
 
 #weather-condition-card {
-    width: min(320px, calc(100vw - 32px));
+    width: min(320px, 100%);
     padding: 12px 14px;
     border-radius: 16px;
     background: rgba(22, 34, 24, 0.78);
@@ -840,6 +884,21 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
 
 .hive-radius-warning {
     filter: drop-shadow(0 0 7px rgba(249, 115, 22, 0.95));
+}
+
+@media (max-width: 1279px) and (min-width: 768px) {
+    body.saas-app.map-app-open #analysis-result-panel,
+    body.saas-app.map-app-open #active-mode-badge,
+    body.saas-app.map-app-open #toast-container {
+        top: 176px;
+    }
+
+    body.saas-app.map-app-open #weather-spray-status {
+        flex-shrink: 1;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+    }
 }
 
 @media (max-width: 1023px) and (min-width: 768px) {

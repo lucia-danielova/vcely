@@ -195,16 +195,17 @@ async function applySuggestion(hit) {
 }
 
 async function flyToPlace(query) {
-    const position = await geocoder.geocodeAddress(query, query);
+    const position = await geocoder.geocodeAddress(query, query, { fallback: false });
     const map = window.agrogisMap?.map;
-    if (map && Number.isFinite(position.lat) && Number.isFinite(position.lng)) {
-        map.flyTo([position.lat, position.lng], 13, { duration: 0.8 });
+    const found = position && Number.isFinite(position.lat) && Number.isFinite(position.lng);
+    if (!found) {
+        window.showToast?.(`Nenašla sa obec ani kataster: ${query}`, 'warning');
+        return;
     }
+    if (map) map.flyTo([position.lat, position.lng], 13, { duration: 0.8 });
     const kuInput = document.getElementById('cadastre-ku-input');
     if (kuInput && query) kuInput.value = query;
-    if (typeof window.showToast === 'function') {
-        window.showToast(`Obec alebo kataster: ${query}`, 'info');
-    }
+    window.showToast?.(`Obec alebo kataster: ${query}`, 'info');
 }
 
 export async function runOmniboxSearch(raw) {

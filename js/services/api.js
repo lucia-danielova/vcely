@@ -241,7 +241,7 @@ export class AgroApiService {
     /**
      * 4. OPENSTREETMAP NOMINATIM — Bezplatné geokódovanie adries a obcí SR
      */
-    async geocodeAddress(fullAddress, fallbackCity = '') {
+    async geocodeAddress(fullAddress, fallbackCity = '', options = {}) {
         try {
             const cleanAddress = fullAddress.replace(/\b\d{3}\s?\d{2}\b/g, '').trim();
             const q1 = encodeURIComponent(`${cleanAddress}, Slovakia`);
@@ -264,6 +264,7 @@ export class AgroApiService {
             console.warn('[ApiService] Nominatim fallback:', error);
         }
 
+        if (options.fallback === false) return null;
         return { lat: 48.3775, lng: 17.5872 };
     }
 
