@@ -491,20 +491,28 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 }
 
 body.saas-app.map-app-open #weather-safety-wrap {
-    top: 16px;
+    top: 84px;
     left: 392px;
-    right: 456px;
+    right: 78px;
     width: auto;
     max-width: none;
     transform: none;
     align-items: center;
-    overflow: hidden;
+    overflow: visible;
     background: transparent;
     border: 0;
     border-radius: 0;
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+}
+
+@media (min-width: 1280px) {
+    body.saas-app.map-app-open #weather-safety-wrap {
+        top: 16px;
+        right: 456px;
+        overflow: hidden;
+    }
 }
 
 #weather-safety-pill,
@@ -878,22 +886,24 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
     filter: drop-shadow(0 0 7px rgba(249, 115, 22, 0.95));
 }
 
-@media (max-width: 1023px) and (min-width: 768px) {
-    body.saas-app.map-app-open #left-sidebar {
-        bottom: calc(72px + env(safe-area-inset-bottom));
-    }
-
-    body.saas-app.map-app-open #weather-safety-wrap {
-        top: 84px;
-        left: 392px;
-        right: 78px;
-        overflow: visible;
-    }
-
+@media (max-width: 1279px) and (min-width: 768px) {
     body.saas-app.map-app-open #analysis-result-panel,
     body.saas-app.map-app-open #active-mode-badge,
     body.saas-app.map-app-open #toast-container {
-        top: 152px;
+        top: 176px;
+    }
+
+    body.saas-app.map-app-open #weather-spray-status {
+        flex-shrink: 1;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+    }
+}
+
+@media (max-width: 1023px) and (min-width: 768px) {
+    body.saas-app.map-app-open #left-sidebar {
+        bottom: calc(72px + env(safe-area-inset-bottom));
     }
 }
 
