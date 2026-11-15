@@ -66,7 +66,7 @@ let appMapEngine = null;
 let pendingHiveCoordinates = null;
 const publicApi = new AgroApiService();
 
-const SUPABASE_URL = 'https://mwvtwfmerozjelyymmxg.supabase.co';
+const SUPABASE_URL = 'https://mvwtwfmerozjelyymmxg.supabase.co';
 
 function readConfiguredAnonKey() {
   const meta = document.querySelector('meta[name="supabase-anon-key"]')?.getAttribute('content') || '';
