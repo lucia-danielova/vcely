@@ -1796,6 +1796,17 @@ function saveSprayBookEntry(event) {
   renderSprayBookList();
   showToast('Záznam postreku je v knihe', 'success');
   event.target.reset();
+  const toxicity = $('spray-toxicity-value');
+  const sprayWindow = $('spray-window-value');
+  if (toxicity) {
+    toxicity.defaultValue = 'safe';
+    toxicity.value = 'safe';
+  }
+  if (sprayWindow) {
+    sprayWindow.defaultValue = 'evening';
+    sprayWindow.value = 'evening';
+  }
+  window.syncSprayChoicePills?.();
 }
 
 function varroaTone(drop) {

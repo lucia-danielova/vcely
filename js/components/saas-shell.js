@@ -419,10 +419,23 @@ async function loadPillForecast() {
             const label = index % 4 === 0 ? `<i>${row.hour}</i>` : '';
             return `<span data-level="${row.level}" style="height:${height}px" title="${row.hour}:00 ${row.temp.toFixed(1)}°C · ${row.wind.toFixed(1)} m/s">${label}</span>`;
         }).join('');
-        const safe = hours.filter((row) => row.level === 'safe');
+        const windows = [];
+        let start = null;
+        let end = null;
+        hours.forEach((row, index) => {
+            if (row.level !== 'safe') return;
+            if (start == null) start = row.hour;
+            end = row.hour;
+            const next = hours[index + 1];
+            if (!next || next.level !== 'safe') {
+                windows.push(start === end ? `${start}:00` : `${start}:00-${end}:00`);
+                start = null;
+                end = null;
+            }
+        });
         if (caption) {
-            caption.textContent = safe.length
-                ? `Bezpečné okno: ${safe[0].hour}:00–${safe[safe.length - 1].hour}:00 · ${safe.length} h`
+            caption.textContent = windows.length
+                ? `Bezpečné okná: ${windows.join(', ')}`
                 : 'V najbližších 24 h nie je bezpečné okno postreku';
         }
     } catch (error) {

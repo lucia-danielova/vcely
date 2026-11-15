@@ -211,7 +211,8 @@ function stripDiacritics(value) {
 }
 
 function pdfEscape(value) {
-    return stripDiacritics(value).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+    const ascii = stripDiacritics(value).replace(/[^\x20-\x7E]/g, ' ');
+    return ascii.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }
 
 function buildReportPdf(lines) {
@@ -222,11 +223,12 @@ function buildReportPdf(lines) {
     });
     commands.push('ET');
     const stream = commands.join('\n');
+    const streamLength = new TextEncoder().encode(stream).length;
     const objects = [
         '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
         '2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj',
-        '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj',
-        `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`,
+        '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> endobj',
+        `4 0 obj << /Length ${streamLength} >> stream\n${stream}\nendstream endobj`,
         '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj'
     ];
     let pdf = '%PDF-1.4\n';
@@ -255,11 +257,11 @@ function exportOfficialReport() {
     const nearParcels = parcelsNear(here.lat, here.lng);
     const sprays = readList(SPRAY_KEY);
     const lines = [
-        'Vcely a poda — uradny vykaz pre UKSUP / CEVZ',
+        'Vcely a poda - uradny vykaz pre UKSUP / CEVZ',
         `Subjekt: ${user?.name || 'Neprihlaseny pouzivatel'}`,
-        `Kod: ${user?.ico || user?.cevz || '—'}`,
+        `Kod: ${user?.ico || user?.cevz || '-'}`,
         `Eko-skore: ${score}/100 (${certificate})`,
-        `Overenie: ${(user?.ico || user?.cevz) ? 'RUZ & CEVZ' : 'caká na overenie'}`,
+        `Overenie: ${(user?.ico || user?.cevz) ? 'RUZ & CEVZ' : 'caka na overenie'}`,
         `Mapa: ${here.lat.toFixed(5)}, ${here.lng.toFixed(5)}`,
         `LPIS v 3 km: ${nearParcels.length}`,
         `Vcelnice v 3 km: ${nearHives.length}`,
@@ -289,7 +291,12 @@ function startCollisionSimulation() {
     window.toggleSpraySimulation?.();
     document.body.classList.add('eco-radar-live');
     clearTimeout(radarTimer);
-    radarTimer = window.setTimeout(() => document.body.classList.remove('eco-radar-live'), 8000);
+    radarTimer = window.setTimeout(() => {
+        document.body.classList.remove('eco-radar-live');
+        const liveMap = window.agrogisMap?.map;
+        if (radarCircle && liveMap) liveMap.removeLayer(radarCircle);
+        radarCircle = null;
+    }, 8000);
     const map = window.agrogisMap?.map;
     if (!map || !window.L) return;
     const center = map.getCenter();
@@ -325,9 +332,19 @@ function syncSprayParcelFields() {
     const parcelInput = document.getElementById('spray-parcel');
     const areaInput = document.getElementById('spray-area');
     if (!pick) return;
-    const chosen = (store.getState().lpisParcels || []).find((item) => item.id === pick.value);
+    const state = store.getState();
+    const chosen = (state.lpisParcels || []).find((item) => item.id === pick.value);
+    const active = state.activeCadastreParcel;
+    const knLabel = active?.parcelNumber ? `KN-${active.register} ${active.parcelNumber}` : '';
     if (parcelInput && pick.value) parcelInput.value = pick.value;
-    if (areaInput && chosen) areaInput.value = Number(chosen.areaHa || 0).toFixed(2);
+    if (!areaInput) return;
+    if (chosen) {
+        areaInput.value = Number(chosen.areaHa || 0).toFixed(2);
+        return;
+    }
+    if (active && pick.value === knLabel) {
+        areaInput.value = Number.isFinite(Number(active.areaHa)) ? Number(active.areaHa).toFixed(2) : '';
+    }
 }
 
 function fillSprayParcels() {
@@ -424,6 +441,20 @@ function paintHiveAnalysis() {
     `;
 }
 
+function reflectChoice(rootId, attribute, hiddenId) {
+    const box = document.getElementById(rootId);
+    const hidden = document.getElementById(hiddenId);
+    if (!box || !hidden) return;
+    box.querySelectorAll('button').forEach((button) => {
+        button.classList.toggle('is-on', button.getAttribute(attribute) === hidden.value);
+    });
+}
+
+function syncSprayChoicePills() {
+    reflectChoice('spray-window-picks', 'data-window', 'spray-window-value');
+    reflectChoice('spray-toxicity', 'data-tox', 'spray-toxicity-value');
+}
+
 function bindChoices(root, attribute, hiddenId) {
     const box = document.getElementById(root);
     const hidden = document.getElementById(hiddenId);
@@ -511,6 +542,7 @@ export function bindEcosystemCenter() {
         window.confirmAddHive?.();
     });
 
+    window.syncSprayChoicePills = syncSprayChoicePills;
     bindChoices('spray-window-picks', 'data-window', 'spray-window-value');
     bindChoices('spray-toxicity', 'data-tox', 'spray-toxicity-value');
     bindChoices('hive-site-picks', 'data-site', 'hive-site-type');

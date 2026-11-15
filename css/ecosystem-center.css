@@ -174,8 +174,7 @@ body:has(#hive-modal:not(.hidden)) #toast-container {
     color: rgba(231, 243, 234, 0.62);
 }
 
-#user-dashboard-modal [id^="dash-tab-btn-"].border-emerald-600,
-#user-dashboard-modal #dash-tab-btn-overview {
+#user-dashboard-modal [id^="dash-tab-btn-"].border-emerald-600 {
     color: #fde68a;
 }
 
