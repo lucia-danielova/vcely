@@ -12,6 +12,24 @@ import {
 } from './components/android-shell.js';
 import { bindSaasShell } from './components/saas-shell.js';
 import { bindEcosystemCenter } from './components/ecosystem-center.js';
+import { readExistingAnonKey } from './config.js';
+import { bindSupabaseClient, loadRemoteApiaries, saveRemoteApiary, saveRemoteSpray } from './services/supabase-api.js';
+
+const SUPABASE_URL = 'https://mwvtwfmerozjelyymmxg.supabase.co';
+const SUPABASE_ANON_KEY = readExistingAnonKey();
+
+function createAppSupabase() {
+  const factory = globalThis.supabase?.createClient;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || typeof factory !== 'function') return null;
+  try {
+    return factory(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+const supabaseClient = createAppSupabase();
+bindSupabaseClient(supabaseClient);
 
 const personaConfig = {
   BEE_PRO: {
@@ -1376,6 +1394,7 @@ function quickDemoLogin(email, password) {
   syncAuthUi();
   closeAuthModal();
   closeLandingPortal();
+  window.openUserDashboardModal?.();
   showToast(`Prihlásený demo používateľ: ${safeUser.name}`, 'success');
 }
 
@@ -1395,6 +1414,7 @@ async function submitLoginForm(event) {
     syncAuthUi();
     closeAuthModal();
     closeLandingPortal();
+    window.openUserDashboardModal?.();
     showToast(`Vitajte, ${user.name}`, 'success');
     return;
   } catch (error) {
@@ -1415,6 +1435,7 @@ async function submitLoginForm(event) {
   syncAuthUi();
   closeAuthModal();
   closeLandingPortal();
+  window.openUserDashboardModal?.();
   showToast(`Vitajte, ${safeUser.name} (lokálny režim)`, 'info');
 }
 
@@ -1690,7 +1711,7 @@ function closeHiveModal() {
   pendingHiveCoordinates = null;
 }
 
-function confirmAddHive() {
+async function confirmAddHive() {
   const nameInput = $('modal-hive-name');
   const countInput = $('modal-hive-count');
   const cevzInput = $('modal-hive-cevz');
@@ -1705,20 +1726,22 @@ function confirmAddHive() {
     id: Date.now(),
     name: nameInput.value.trim() || 'Nové stanovište',
     count: Number(countInput.value) || 1,
-    email: emailInput.value.trim() || 'n/a',
-    cevz: cevzInput?.value?.trim() || 'CEVZ-SK-2026',
+    email: emailInput.value.trim() || '',
+    cevz: cevzInput?.value?.trim() || '',
     lat: pendingHiveCoordinates.lat,
     lng: pendingHiveCoordinates.lng,
     siteType: $('hive-site-type')?.value || 'permanent',
     nectarTags: $('hive-nectar-tags')?.value || ''
   };
 
+  const cloud = await saveRemoteApiary(hive);
   const state = store.getState();
-  const updatedHives = [...state.hives, hive];
+  const updatedHives = [...state.hives, { ...hive, remote: cloud.ok }];
   store.setState({ hives: updatedHives });
   closeHiveModal();
   if (appMapEngine) appMapEngine.renderAllHives();
-  showToast('Včelstvo bolo pridané do mapy', 'success');
+  if (cloud.ok) showToast('3 km ochranné pásmo je uložené', 'success');
+  else showToast('Pásmo je len v tomto zariadení. Zápis včelnice do Supabase sa nepodaril.', 'warning');
 
   if (getCurrentUserSafe() && localStorage.getItem('agrogis_api_token_v1')) {
     backendApi.saveHive(hive)
@@ -1879,10 +1902,24 @@ function renderSprayBookList() {
     : '<p class="text-slate-500">Kniha je zatiaľ prázdna.</p>';
 }
 
-function saveSprayBookEntry(event) {
+function spraySaveLocation() {
+  const pick = $('spray-parcel-pick')?.value || '';
+  const state = store.getState();
+  const parcel = (state.lpisParcels || []).find((item) => item.id === pick);
+  if (parcel?.center) return { lat: Number(parcel.center[0]), lng: Number(parcel.center[1]) };
+  const active = state.activeCadastreParcel;
+  if (active?.center && pick === `KN-${active.register} ${active.parcelNumber}`) {
+    return { lat: Number(active.center[0]), lng: Number(active.center[1]) };
+  }
+  const center = window.agrogisMap?.map?.getCenter();
+  if (!center) return { lat: null, lng: null };
+  return { lat: center.lat, lng: center.lng };
+}
+
+async function saveSprayBookEntry(event) {
   event.preventDefault();
-  const rows = readJsonList(SPRAY_BOOK_KEY);
-  rows.unshift({
+  const location = spraySaveLocation();
+  const entry = {
     id: Date.now(),
     parcel: $('spray-parcel')?.value?.trim() || '',
     areaHa: Number($('spray-area')?.value || 0),
@@ -1891,11 +1928,17 @@ function saveSprayBookEntry(event) {
     tempC: Number($('spray-temp')?.value || 0),
     when: $('spray-when')?.value || '',
     toxicity: $('spray-toxicity-value')?.value || '',
-    sprayWindow: $('spray-window-value')?.value || ''
-  });
+    sprayWindow: $('spray-window-value')?.value || '',
+    lat: location.lat,
+    lng: location.lng
+  };
+  const rows = readJsonList(SPRAY_BOOK_KEY);
+  rows.unshift(entry);
   localStorage.setItem(SPRAY_BOOK_KEY, JSON.stringify(rows));
+  const cloud = await saveRemoteSpray(entry);
   renderSprayBookList();
-  showToast('Záznam postreku je v knihe', 'success');
+  if (cloud.ok) showToast('Záznam postreku je uložený', 'success');
+  else showToast('Záznam je len v knihe na tomto zariadení. Zápis do Supabase sa nepodaril.', 'warning');
   event.target.reset();
   const parcel = $('spray-parcel');
   const area = $('spray-area');
@@ -2127,8 +2170,11 @@ function initUi() {
 
 function initMapApp() {
   if (!appMapEngine) {
-    appMapEngine = new AgroMapEngine('interactive-nature-map', null, false);
+    appMapEngine = new AgroMapEngine('interactive-nature-map', supabaseClient, Boolean(supabaseClient));
     window.agrogisMap = appMapEngine;
+    loadRemoteApiaries().then((loaded) => {
+      if (loaded && appMapEngine) appMapEngine.renderAllHives();
+    });
   }
 }
 

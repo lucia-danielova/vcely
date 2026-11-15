@@ -3,8 +3,6 @@
  * @description IndexedDB Offline fronta a PostGIS priestorový adaptér.
  */
 
-import { store } from '../core/state-store.js';
-import { AgroApiService } from './api.js';
 import { showNotificationToast } from '../components/event-bus.js';
 
 const DB_NAME = 'AgrogisEnterpriseDB';
@@ -63,37 +61,11 @@ export class OfflineSyncService {
     }
 
     static async executeSpatialCollisionCheck(supabaseClient, isCloudConfigured, sprayLat, sprayLng, radiusMeters = 3000) {
-        if (isCloudConfigured && supabaseClient && navigator.onLine) {
-            try {
-                const { data, error } = await supabaseClient.rpc('check_spray_collision_optimized', {
-                    spray_lat: sprayLat,
-                    spray_lng: sprayLng,
-                    radius_meters: radiusMeters
-                });
-                if (!error && Array.isArray(data) && data.length > 0) return data;
-            } catch (err) {}
+        const { bindSupabaseClient, queryApiariesInBuffer, supabaseClient: currentClient } = await import('./supabase-api.js');
+        if (isCloudConfigured && supabaseClient && supabaseClient !== currentClient()) {
+            bindSupabaseClient(supabaseClient);
         }
-
-        const allHives = store.getState().hives;
-        const collisions = [];
-
-        for (const hive of allHives) {
-            const dist = AgroApiService.calculateDistanceMeters(sprayLat, sprayLng, hive.lat, hive.lng);
-            if (dist <= radiusMeters) {
-                collisions.push({
-                    hive_id: hive.id,
-                    hive_name: hive.name,
-                    hive_count: Number(hive.count) || 0,
-                    hive_email: hive.email || 'ochrana@vcelari.sk',
-                    hive_cevz: hive.cevz || 'CEVZ-SR',
-                    lat: hive.lat,
-                    lng: hive.lng,
-                    distance_meters: dist
-                });
-            }
-        }
-
-        collisions.sort((a, b) => a.distance_meters - b.distance_meters);
-        return collisions;
+        const result = await queryApiariesInBuffer(sprayLat, sprayLng, radiusMeters);
+        return result.rows;
     }
 }

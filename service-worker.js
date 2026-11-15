@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'vcely-shell-v4';
-const RUNTIME_CACHE = 'vcely-runtime-v4';
+const SHELL_CACHE = 'vcely-shell-v5';
+const RUNTIME_CACHE = 'vcely-runtime-v5';
 const SHELL_FILES = [
 	'./',
 	'./index.html',
@@ -24,7 +24,15 @@ const SHELL_FILES = [
 	'./js/services/backend-api.js',
 	'./js/services/circuit-breaker.js',
 	'./js/services/offline-sync.js',
-	'./js/services/pwa-install.js'
+	'./js/services/pwa-install.js',
+	'./js/services/forecast-windows.js',
+	'./js/services/supabase-records.js',
+	'./js/services/supabase-api.js',
+	'./js/config.js',
+	'./js/components/saas-shell.js',
+	'./js/components/ecosystem-center.js',
+	'./css/saas-dashboard.css',
+	'./css/ecosystem-center.css'
 ];
 const CDN_HOSTS = new Set([
 	'cdn.tailwindcss.com',

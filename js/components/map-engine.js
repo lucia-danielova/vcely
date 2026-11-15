@@ -482,7 +482,7 @@ export class AgroMapEngine {
                     <span class="text-xs font-extrabold text-emerald-700">${parcel.areaHa} ha</span>
                 </div>
                 <div class="text-xs space-y-1 text-slate-700">
-                    <div><span class="text-slate-500">Užívateľ:</span> <b class="text-slate-900">${parcel.ownerName}</b></div>
+                    <div><span class="text-slate-500">Užívateľ:</span> <b class="text-slate-900">${this._esc(parcel.ownerName)}</b></div>
                     <div><span class="text-slate-500">IČO:</span> <span class="font-mono font-bold">${parcel.ownerIco}</span></div>
                     <div><span class="text-slate-500">Katastrálne územie:</span> <span class="text-sky-700 font-semibold">${parcel.kUzemie || 'SR'}</span></div>
                     <div><span class="text-slate-500">Kultúra:</span> <span>${parcel.kultura}</span></div>
@@ -504,9 +504,9 @@ export class AgroMapEngine {
             'Pozemok zakreslený v aplikácii',
             'bg-emerald-100 text-emerald-900 border border-emerald-300',
             `
-                <div class="font-extrabold text-slate-900">${parcel.id} — ${parcel.ownerName}</div>
-                <div class="text-[11px] text-slate-600">Výmera: <b class="text-emerald-700">${parcel.areaHa} ha</b> | k. ú.: ${parcel.kUzemie || 'SR'}</div>
-                <div class="text-[11px] text-slate-700">Plodina: <b class="text-amber-700">${parcel.crop}</b></div>
+                <div class="font-extrabold text-slate-900">${this._esc(parcel.id)} — ${this._esc(parcel.ownerName)}</div>
+                <div class="text-[11px] text-slate-600">Výmera: <b class="text-emerald-700">${this._esc(parcel.areaHa)} ha</b> | k. ú.: ${this._esc(parcel.kUzemie || 'SR')}</div>
+                <div class="text-[11px] text-slate-700">Plodina: <b class="text-amber-700">${this._esc(parcel.crop)}</b></div>
                 <div class="text-[10px] font-mono text-sky-700 font-bold">S-JTSK: Y ${jtsk.y}, X ${jtsk.x}</div>
                 <button onclick="window.runSprayCheckOnCoords(${parcel.center[0]}, ${parcel.center[1]}, '${parcel.id}')" class="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] py-2 px-3 rounded-xl transition">
                     ⚠️ Spustiť 3 km test kolízie s včelstvami
@@ -568,7 +568,7 @@ export class AgroMapEngine {
                 html: `
                     <div class="${pulseClass}" style="background: ${badgeBg}; color: white; padding: 4px 11px; border-radius: 9999px; font-weight: 800; font-size: 11px; box-shadow: 0 6px 16px rgba(0,0,0,0.45); display: inline-flex; align-items: center; gap: 4px; border: 2px solid #ffffff; white-space: nowrap;">
                         <span>🐝</span>
-                        <span>${hive.count} rodín</span>
+                        <span>${this._esc(hive.count)} rodín</span>
                     </div>
                 `,
                 iconSize: [102, 28],
@@ -579,12 +579,12 @@ export class AgroMapEngine {
             marker.bindPopup(`
                 <div class="p-2.5 space-y-1.5 min-w-[235px]">
                     <div class="flex items-center justify-between border-b border-stone-200 pb-1">
-                        <span class="bg-amber-100 text-amber-900 border border-amber-300 font-mono text-[10px] px-2.5 py-0.5 rounded-full font-bold">${hive.cevz || 'CEVZ-SR'}</span>
-                        <span class="text-xs font-extrabold text-amber-700">🐝 ${hive.count} rodín</span>
+                        <span class="bg-amber-100 text-amber-900 border border-amber-300 font-mono text-[10px] px-2.5 py-0.5 rounded-full font-bold">${this._esc(hive.cevz || 'CEVZ-SR')}</span>
+                        <span class="text-xs font-extrabold text-amber-700">🐝 ${this._esc(hive.count)} rodín</span>
                     </div>
-                    <div class="font-extrabold text-xs text-slate-900 pt-0.5">${hive.name}</div>
-                    <div class="text-[10px] text-slate-500">Ukážkové stanovište, nie živý export CEVZ.</div>
-                    <div class="text-[11px] text-slate-700">Kontakt: <span class="text-emerald-700 font-semibold">${hive.email || 'neuvedený'}</span></div>
+                    <div class="font-extrabold text-xs text-slate-900 pt-0.5">${this._esc(hive.name)}</div>
+                    <div class="text-[10px] text-slate-500">${hive.remote ? 'Stanovište z evidencie včelníc.' : 'Ukážkové stanovište, nie živý export CEVZ.'}</div>
+                    <div class="text-[11px] text-slate-700">Kontakt: <span class="text-emerald-700 font-semibold">${this._esc(hive.email || 'neuvedený')}</span></div>
                     <div class="text-[10px] text-sky-700 font-mono font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
                     <div class="text-[10px] text-slate-500 font-mono">WGS84: ${hive.lat.toFixed(5)}°, ${hive.lng.toFixed(5)}°</div>
                 </div>
@@ -614,6 +614,27 @@ export class AgroMapEngine {
         this._ensureHiveFillDefs();
     }
 
+    async pulseIntersectingZones(lat, lng) {
+        const token = (this._pulseToken || 0) + 1;
+        this._pulseToken = token;
+        const collisions = await OfflineSyncService.executeSpatialCollisionCheck(
+            this.supabase,
+            this.isCloudConfigured,
+            lat,
+            lng,
+            3000
+        );
+        if (this._pulseToken !== token) return collisions;
+        const ids = new Set(collisions.map((row) => row.hive_id).filter((id) => id != null));
+        this.renderAllHives(ids);
+        return collisions;
+    }
+
+    cancelPulse() {
+        this._pulseToken = (this._pulseToken || 0) + 1;
+        this.renderAllHives(new Set());
+    }
+
     showApiaryInspector(hive) {
         if (!hive) return;
         const jtsk = AgroApiService.wgs84ToSJTSK(hive.lat, hive.lng);
@@ -621,8 +642,8 @@ export class AgroMapEngine {
             'Včelnica',
             'bg-amber-100 text-amber-950 border border-amber-300',
             `
-                <div class="font-extrabold text-slate-900">${hive.name}</div>
-                <div class="text-[11px] text-slate-700">CEVZ: <b>${hive.cevz || 'Hobby'}</b> · ${hive.count} rodín</div>
+                <div class="font-extrabold text-slate-900">${this._esc(hive.name)}</div>
+                <div class="text-[11px] text-slate-700">CEVZ: <b>${this._esc(hive.cevz || 'Hobby')}</b> · ${this._esc(hive.count)} rodín</div>
                 <div class="text-[10px] font-mono text-sky-700 font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
                 ${this.inspectorFactsHtml({
                     parcelNumber: hive.cevz || 'včelnica',
@@ -650,7 +671,7 @@ export class AgroMapEngine {
             html: `
                 <div style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); color: white; padding: 6px 14px; border-radius: 9999px; font-weight: 800; font-size: 11px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); display: inline-flex; align-items: center; gap: 6px; border: 2px solid #ffffff; white-space: nowrap;">
                     <span>🚜</span>
-                    <span>${name}</span>
+                    <span>${this._esc(name)}</span>
                 </div>
             `,
             iconSize: [190, 34],
@@ -662,10 +683,10 @@ export class AgroMapEngine {
             <div class="p-2.5 space-y-2 min-w-[255px]">
                 <div class="flex items-center justify-between border-b border-stone-200 pb-1">
                     <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full">Záznam subjektu</span>
-                    <span class="font-mono text-xs text-slate-700 font-bold">IČO: ${ico}</span>
+                    <span class="font-mono text-xs text-slate-700 font-bold">IČO: ${this._esc(ico)}</span>
                 </div>
-                <div class="font-extrabold text-sm text-slate-900">🏢 ${name}</div>
-                <div class="text-xs text-slate-700">📍 Sídlo: ${address}</div>
+                <div class="font-extrabold text-sm text-slate-900">🏢 ${this._esc(name)}</div>
+                <div class="text-xs text-slate-700">📍 Sídlo: ${this._esc(address)}</div>
                 <div class="text-[10px] font-mono text-sky-700 font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
                 <div class="text-[11px] text-slate-600">Pozemky uložené v aplikácii: <b class="text-emerald-700">${ownedParcels.length} (${totalHa} ha)</b></div>
                 <button onclick="window.runSprayCheckOnCoords(${lat}, ${lng}, '${safeName}')" class="w-full mt-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] py-2 px-2 rounded-xl transition">
@@ -682,9 +703,9 @@ export class AgroMapEngine {
             'Subjekt overený',
             'bg-emerald-100 text-emerald-900 border border-emerald-300',
             `
-                <div class="font-extrabold text-slate-900 text-sm">🏢 ${name}</div>
-                <div class="text-xs text-slate-700">IČO: <span class="font-mono text-emerald-700 font-bold">${ico}</span></div>
-                <div class="text-xs text-slate-600">Sídlo: ${address}</div>
+                <div class="font-extrabold text-slate-900 text-sm">🏢 ${this._esc(name)}</div>
+                <div class="text-xs text-slate-700">IČO: <span class="font-mono text-emerald-700 font-bold">${this._esc(ico)}</span></div>
+                <div class="text-xs text-slate-600">Sídlo: ${this._esc(address)}</div>
                 <div class="text-[10px] font-mono text-sky-700 font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
                 <div class="text-xs text-slate-700 pt-1">Pozemky uložené v aplikácii: <b class="text-emerald-700">${ownedParcels.length} (${totalHa} ha)</b></div>
                 <button onclick="window.runSprayCheckOnCoords(${lat}, ${lng}, '${safeName}')" class="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] py-2 px-3 rounded-xl transition">
@@ -728,7 +749,7 @@ export class AgroMapEngine {
                     <span class="bg-sky-100 text-sky-900 border border-sky-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase">ℹ️ Identifikácia bodu ZBGIS</span>
                     <span class="font-mono text-[10px] text-amber-700 font-extrabold">${geoInfo.elevation}</span>
                 </div>
-                <div class="text-xs font-extrabold text-slate-900">${geoInfo.locality}</div>
+                <div class="text-xs font-extrabold text-slate-900">${this._esc(geoInfo.locality)}</div>
                 <div class="text-[11px] text-slate-600">${geoInfo.municipality}</div>
                 <div class="bg-stone-100 p-2 rounded-xl border border-stone-200 font-mono text-[10px] space-y-1">
                     <div class="text-sky-800"><b>S-JTSK [5514]:</b> Y ${jtsk.y} m, X ${jtsk.x} m</div>
@@ -748,7 +769,7 @@ export class AgroMapEngine {
             'Inšpektor S-JTSK',
             'bg-sky-100 text-sky-900 border border-sky-300',
             `
-                <div class="font-extrabold text-slate-900 text-xs">${geoInfo.locality} (${geoInfo.municipality})</div>
+                <div class="font-extrabold text-slate-900 text-xs">${this._esc(geoInfo.locality)} (${this._esc(geoInfo.municipality)})</div>
                 <div class="text-[11px] text-amber-700 font-mono font-bold">Výška: ${geoInfo.elevation}</div>
                 <div class="text-[10px] font-mono text-sky-800 font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
                 <div class="text-[10px] font-mono text-emerald-800">ETRS89: ${dmsLat}, ${dmsLng}</div>
@@ -821,7 +842,7 @@ export class AgroMapEngine {
                         dashArray: '5, 6'
                     });
                     const distKm = (hive.distance_meters / 1000).toFixed(2);
-                    line.bindTooltip(`⚡ ${distKm} km (${hive.hive_name})`, { permanent: false });
+                    line.bindTooltip(`⚡ ${distKm} km (${this._esc(hive.hive_name)})`, { permanent: false });
                     this.sprayLayer.addLayer(line);
                 }
             });
@@ -829,7 +850,7 @@ export class AgroMapEngine {
             const listHtml = collisions.map((c, idx) => {
                 const km = (c.distance_meters / 1000).toFixed(2);
                 return `<div class="flex justify-between items-center border-b border-stone-200 py-1 text-[11px]">
-                    <span class="truncate pr-2 text-slate-800">${idx + 1}. <b>${c.hive_name}</b> (${c.hive_count} rod.)</span>
+                    <span class="truncate pr-2 text-slate-800">${idx + 1}. <b>${this._esc(c.hive_name)}</b> (${this._esc(c.hive_count)} rod.)</span>
                     <span class="font-mono font-bold text-rose-700 shrink-0">${km} km</span>
                 </div>`;
             }).join('');
@@ -840,7 +861,7 @@ export class AgroMapEngine {
                         <span class="bg-rose-100 text-rose-900 border border-rose-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase">⚠️ Kolízia postreku!</span>
                         <span class="text-xs font-extrabold text-rose-700">Pásmo 3 000 m</span>
                     </div>
-                    <div class="text-xs font-extrabold text-slate-900">${contextLabel}</div>
+                    <div class="text-xs font-extrabold text-slate-900">${this._esc(contextLabel)}</div>
                     <div class="text-[11px] text-slate-700">Zasiahnutých stanovíšť: <b class="text-rose-700">${collisions.length}</b> (spolu <b>${totalEndangeredColonies} rodín</b>)</div>
                     <div class="max-h-28 overflow-y-auto bg-stone-50 p-1.5 rounded-xl border border-stone-200">
                         ${listHtml}

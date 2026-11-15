@@ -1,5 +1,7 @@
 import { store } from '../core/state-store.js';
 import { AgroApiService } from '../services/api.js';
+import { describeForecastWindows, sprayLevel } from '../services/forecast-windows.js';
+import { queryApiariesInBuffer } from '../services/supabase-api.js';
 import { escapeHtml } from './saas-shell.js';
 
 const VARROA_KEY = 'vcely_varroa_v1';
@@ -15,13 +17,6 @@ function readList(key) {
     } catch (error) {
         return [];
     }
-}
-
-function sprayLevel(temp, wind) {
-    const beeActive = temp >= 12;
-    if (wind > 5 || (beeActive && wind > 4 && temp >= 20)) return 'banned';
-    if (wind > 3 || temp > 25 || temp < 5 || (beeActive && wind > 3)) return 'caution';
-    return 'safe';
 }
 
 function mapCenter() {
@@ -163,12 +158,7 @@ function paintWeatherChart(hours) {
         const label = index % 4 === 0 ? `<i>${row.hour}</i>` : '';
         return `<span data-level="${row.level}" style="height:${height}px" title="${row.hour} ${row.temp.toFixed(1)}°C · ${row.wind.toFixed(1)} m/s">${label}</span>`;
     }).join('');
-    const safe = hours.filter((row) => row.level === 'safe').length;
-    if (caption) {
-        caption.textContent = safe
-            ? `${safe} hodín v bezpečnom okne · Open-Meteo, stred mapy`
-            : 'V najbližších 24 h nie je bezpečné okno postreku';
-    }
+    if (caption) caption.textContent = `${describeForecastWindows(hours).caption} · Open-Meteo`;
 }
 
 async function loadWeather() {
@@ -292,17 +282,11 @@ function exportOfficialReport() {
 
 function startCollisionSimulation() {
     window.closeUserDashboardModal?.();
-    window.toggleSpraySimulation?.();
-    document.body.classList.add('eco-radar-live');
-    clearTimeout(radarTimer);
-    radarTimer = window.setTimeout(() => {
-        document.body.classList.remove('eco-radar-live');
-        const liveMap = window.agrogisMap?.map;
-        if (radarCircle && liveMap) liveMap.removeLayer(radarCircle);
-        radarCircle = null;
-    }, 8000);
     const map = window.agrogisMap?.map;
-    if (!map || !window.L) return;
+    const engine = window.agrogisMap;
+    if (!map || !window.L || !engine) return;
+    clearTimeout(radarTimer);
+    document.body.classList.add('eco-radar-live');
     const center = map.getCenter();
     if (radarCircle) map.removeLayer(radarCircle);
     radarCircle = window.L.circle(center, {
@@ -315,6 +299,13 @@ function startCollisionSimulation() {
         className: 'eco-radar-ring',
         interactive: false
     }).addTo(map);
+    engine.pulseIntersectingZones?.(center.lat, center.lng);
+    radarTimer = window.setTimeout(() => {
+        document.body.classList.remove('eco-radar-live');
+        if (radarCircle) map.removeLayer(radarCircle);
+        radarCircle = null;
+        engine.cancelPulse?.();
+    }, 6500);
 }
 
 function selectedSprayPoint() {
@@ -374,12 +365,34 @@ function fillSprayParcels() {
     syncSprayParcelFields();
 }
 
-function paintSprayRadar() {
+let sprayRows = [];
+let sprayRadarToken = 0;
+
+function sprayFormIsBlank() {
+    const pick = document.getElementById('spray-parcel-pick');
+    const parcel = document.getElementById('spray-parcel')?.value?.trim() || '';
+    return !parcel && !(pick && pick.selectedIndex >= 0);
+}
+
+function collisionAsHiveRows(rows) {
+    return rows.map((row) => ({
+        hive: {
+            id: row.hive_id,
+            name: row.hive_name,
+            count: row.hive_count,
+            email: row.hive_email,
+            cevz: row.hive_cevz,
+            lat: row.lat,
+            lng: row.lng
+        },
+        meters: row.distance_meters
+    }));
+}
+
+function paintSprayRadarHtml(rows, label) {
     const host = document.getElementById('spray-collision-radar');
     const button = document.getElementById('spray-alert-beekeepers');
     if (!host) return;
-    const point = selectedSprayPoint();
-    const rows = hivesNear(point.lat, point.lng);
     const colonies = rows.reduce((sum, row) => sum + Number(row.hive.count || 0), 0);
     const sites = rows.length === 1 ? 'stanovište' : rows.length < 5 ? 'stanovištia' : 'stanovíšť';
     const list = rows.length
@@ -387,15 +400,38 @@ function paintSprayRadar() {
         : '<p class="eco-radar-ok">V okruhu 3 km nie je evidovaná včelnica.</p>';
     host.innerHTML = `
         <b>Automatický radar kolízií (3 km)</b>
-        <p class="${rows.length ? 'eco-radar-hot' : 'eco-radar-ok'}">Zasiahnuté včelnice v 3 km pásme: ${rows.length} ${sites} (${colonies} rodín) · ${escapeHtml(point.label)}</p>
+        <p class="${rows.length ? 'eco-radar-hot' : 'eco-radar-ok'}">Zasiahnuté včelnice v 3 km pásme: ${rows.length} ${sites} (${colonies} rodín) · ${escapeHtml(label)}</p>
         ${list}
     `;
     if (button) button.textContent = `Odoslať výstrahu včelárom (${rows.length})`;
 }
 
+async function paintSprayRadar() {
+    const host = document.getElementById('spray-collision-radar');
+    const button = document.getElementById('spray-alert-beekeepers');
+    const token = ++sprayRadarToken;
+    if (!host) return;
+    if (sprayFormIsBlank()) {
+        sprayRows = [];
+        host.innerHTML = `
+            <b>Automatický radar kolízií (3 km)</b>
+            <p>Vyberte parcelu a radar vypíše zasiahnuté včelnice.</p>
+        `;
+        if (button) button.textContent = 'Odoslať výstrahu včelárom (0)';
+        return;
+    }
+    const point = selectedSprayPoint();
+    const result = await queryApiariesInBuffer(point.lat, point.lng, 3000);
+    if (token !== sprayRadarToken) return;
+    sprayRows = result.ok
+        ? collisionAsHiveRows(result.rows)
+        : hivesNear(point.lat, point.lng);
+    paintSprayRadarHtml(sprayRows, point.label);
+}
+
 function sendSprayAlerts() {
     const point = selectedSprayPoint();
-    const rows = hivesNear(point.lat, point.lng);
+    const rows = sprayFormIsBlank() ? [] : (sprayRows.length ? sprayRows : hivesNear(point.lat, point.lng));
     const colonies = rows.reduce((sum, row) => sum + Number(row.hive.count || 0), 0);
     store.setState({
         lastCollisionReport: {
@@ -431,7 +467,7 @@ function hivePoint() {
 function paintHiveAnalysis() {
     const host = document.getElementById('hive-range-analysis');
     const badge = document.getElementById('hive-lock-badge');
-    if (badge) badge.hidden = false;
+    if (badge) badge.hidden = !document.getElementById('modal-hive-coords')?.value?.trim();
     if (!host) return;
     const point = hivePoint();
     const blocks = parcelsNear(point.lat, point.lng);

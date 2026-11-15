@@ -123,7 +123,7 @@ body:has(#hive-modal:not(.hidden)) #toast-container {
     border-radius: 999px;
     padding: 6px 12px;
     background: rgba(16, 185, 129, 0.16);
-    border: 1px solid #22c55e;
+    border: 1px solid #10B981;
     color: #bbf7d0;
     font-size: 11px;
     font-weight: 800;
@@ -241,13 +241,13 @@ body:has(#hive-modal:not(.hidden)) #toast-container {
     flex: 1 1 0;
     min-width: 0;
     border-radius: 4px 4px 2px 2px;
-    background: #22c55e;
+    background: #10B981;
     position: relative;
 }
 
 .eco-chart span[data-level="caution"] { background: #f59e0b; }
 .eco-chart span[data-level="banned"] { background: #e11d48; }
-.eco-chart span[data-level="safe"] { background: #22c55e; }
+.eco-chart span[data-level="safe"] { background: #10B981; }
 
 .eco-chart span i {
     position: absolute;
@@ -324,7 +324,7 @@ body:has(#hive-modal:not(.hidden)) #toast-container {
 
 .eco-choice-row button.is-on {
     background: rgba(16, 185, 129, 0.22);
-    border-color: #22c55e;
+    border-color: #10B981;
     color: #bbf7d0;
 }
 
@@ -364,7 +364,7 @@ body:has(#hive-modal:not(.hidden)) #toast-container {
     border-radius: 999px;
     padding: 6px 8px;
     background: rgba(16, 185, 129, 0.2);
-    border: 1px solid #22c55e;
+    border: 1px solid #10B981;
     color: #bbf7d0;
     font-size: 10px;
     font-weight: 800;
@@ -394,7 +394,6 @@ body:has(#hive-modal:not(.hidden)) #toast-container {
     font-weight: 800;
 }
 
-body.eco-radar-live .hive-radius-honey,
 body.eco-radar-live .hive-radius-warning,
 .eco-radar-ring {
     animation: eco-radar-pulse 1.6s ease-in-out infinite;

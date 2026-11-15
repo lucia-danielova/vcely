@@ -1063,8 +1063,8 @@
                             <div class="eco-widgets" id="eco-widgets">
                                 <section class="eco-widget" aria-labelledby="eco-weather-title">
                                     <header>
-                                        <h3 id="eco-weather-title">24h AI Okno Postreku</h3>
-                                        <small>Meteo & vietor</small>
+                                        <h3 id="eco-weather-title">24h okno postreku a letu</h3>
+                                        <small>Open-Meteo</small>
                                     </header>
                                     <div id="eco-weather-chart" class="eco-chart" role="img" aria-label="Hodinové okná postreku"></div>
                                     <p id="eco-weather-caption" class="eco-widget-note">Načítavam Open-Meteo…</p>
@@ -1251,7 +1251,7 @@
                             <label class="block text-slate-500 mb-1">Zamerané súradnice v mape</label>
                             <div class="eco-hive-loc">
                                 <input type="text" id="modal-hive-coords" readonly class="w-full bg-stone-100 border border-stone-200 rounded-xl px-3 py-2 text-emerald-800 font-mono text-[11px]">
-                                <span id="hive-lock-badge" class="eco-lock">✓ Zamerané na mape</span>
+                                <span id="hive-lock-badge" class="eco-lock" hidden>✓ Zamerané na mape</span>
                                 <button type="button" id="hive-gps-btn" class="eco-gps-btn">GPS</button>
                             </div>
                         </div>
@@ -1270,7 +1270,7 @@
                             </div>
                             <div>
                                 <label class="block text-slate-700 mb-1 font-bold">Číslo CEVZ (alebo HOBBY)</label>
-                                <input type="text" id="modal-hive-cevz" value="CEVZ-SK-2026" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-slate-900 focus:border-amber-500 focus:outline-none">
+                                <input type="text" id="modal-hive-cevz" placeholder="voliteľné" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-slate-900 focus:border-amber-500 focus:outline-none">
                             </div>
                         </div>
                         <div>
@@ -1280,7 +1280,7 @@
                         <input type="hidden" id="hive-site-type" value="permanent">
                         <input type="hidden" id="hive-nectar-tags" value="">
                         <div class="eco-choice-row" id="hive-site-picks">
-                            <button type="button" data-site="permanent" class="is-on">Trvalé stanovište</button>
+                            <button type="button" data-site="permanent" class="is-on">Trvalé</button>
                             <button type="button" data-site="migratory">Kočovný voz</button>
                         </div>
                         <div>

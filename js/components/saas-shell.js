@@ -6,6 +6,7 @@
 
 import { store } from '../core/state-store.js';
 import { AgroApiService } from '../services/api.js';
+import { describeForecastWindows, sprayLevel } from '../services/forecast-windows.js';
 
 const PERSONA_BY_MODE = {
     hobby: 'AGRO_HOBBY',
@@ -111,21 +112,30 @@ function suggestionPool(query) {
             });
         }
     });
+    const user = state.currentUser;
     (state.lpisParcels || []).forEach((parcel) => {
         const haystack = `${parcel.id || ''} ${parcel.crop || ''} ${parcel.kUzemie || ''} ${parcel.ownerName || ''}`.toLowerCase();
-        if (haystack.includes(needle)) {
+        const mine = Boolean(user && (
+            (user.ico && parcel.ownerIco === user.ico)
+            || (user.name && parcel.ownerName === user.name)
+            || (user.companyName && parcel.ownerName === user.companyName)
+        ));
+        if (haystack.includes(needle) || (mine && needle.length >= 2 && String(parcel.id || '').toLowerCase().includes(needle))) {
             hits.push({
                 kind: 'lpis',
                 label: parcel.id,
-                detail: `${parcel.crop || 'LPIS'} · ${parcel.ownerName || ''}`,
+                detail: mine ? 'Moja parcela' : `${parcel.crop || 'LPIS'} · ${parcel.ownerName || ''}`,
                 id: parcel.id,
-                parcel
+                parcel,
+                mine
             });
         }
     });
 
     const preferred = omniFilter === 'hives' ? 'hive' : (omniFilter === 'lpis' ? 'lpis' : '');
     hits.sort((left, right) => {
+        if (left.mine && !right.mine) return -1;
+        if (right.mine && !left.mine) return 1;
         if (left.kind === preferred && right.kind !== preferred) return -1;
         if (right.kind === preferred && left.kind !== preferred) return 1;
         return 0;
@@ -384,13 +394,6 @@ function bindSheetDrag() {
     handle.addEventListener('pointercancel', endDrag);
 }
 
-function sprayLevel(temp, wind) {
-    const beeActive = temp >= 12;
-    if (wind > 5 || (beeActive && wind > 4 && temp >= 20)) return 'banned';
-    if (wind > 3 || temp > 25 || temp < 5 || (beeActive && wind > 3)) return 'caution';
-    return 'safe';
-}
-
 async function loadPillForecast() {
     const host = document.getElementById('weather-forecast-24');
     const caption = document.getElementById('weather-forecast-caption');
@@ -419,25 +422,7 @@ async function loadPillForecast() {
             const label = index % 4 === 0 ? `<i>${row.hour}</i>` : '';
             return `<span data-level="${row.level}" style="height:${height}px" title="${row.hour}:00 ${row.temp.toFixed(1)}°C · ${row.wind.toFixed(1)} m/s">${label}</span>`;
         }).join('');
-        const windows = [];
-        let start = null;
-        let end = null;
-        hours.forEach((row, index) => {
-            if (row.level !== 'safe') return;
-            if (start == null) start = row.hour;
-            end = row.hour;
-            const next = hours[index + 1];
-            if (!next || next.level !== 'safe') {
-                windows.push(start === end ? `${start}:00` : `${start}:00-${end}:00`);
-                start = null;
-                end = null;
-            }
-        });
-        if (caption) {
-            caption.textContent = windows.length
-                ? `Bezpečné okná: ${windows.join(', ')}`
-                : 'V najbližších 24 h nie je bezpečné okno postreku';
-        }
+        if (caption) caption.textContent = describeForecastWindows(hours).caption;
     } catch (error) {
         if (caption) caption.textContent = 'Open-Meteo teraz nevrátilo 24 h predpoveď.';
     }
