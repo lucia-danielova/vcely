@@ -259,16 +259,16 @@ class ApplicationStateStore {
             loading: false,
             hives: savedHives
                 ? JSON.parse(savedHives).filter(hive => !LEGACY_DEMO_HIVES.some(sample => sample.id === hive.id && sample.name === hive.name))
-                : [],
+                : LEGACY_DEMO_HIVES,
             entities: savedEntities
                 ? JSON.parse(savedEntities).filter(entity => !LEGACY_DEMO_ENTITIES.some(sample => sample.ico === entity.ico && sample.name === entity.name))
-                : [],
+                : LEGACY_DEMO_ENTITIES,
             lpisParcels: savedParcels
                 ? JSON.parse(savedParcels).filter(parcel =>
                     !LEGACY_DEMO_LPIS_PARCELS.some(sample => sample.id === parcel.id) &&
                     !String(parcel.id).startsWith('LPIS-SR-')
                 )
-                : [],
+                : LEGACY_DEMO_LPIS_PARCELS,
             cadastreParcels: [],
             sprayAlerts: savedAlerts
                 ? JSON.parse(savedAlerts).filter(alert => !LEGACY_DEMO_SPRAY_ALERTS.some(sample => sample.id === alert.id))

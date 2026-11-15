@@ -23,6 +23,7 @@ export class AgroMapEngine {
         this.lpisVectorLayer = L.layerGroup();
         this.cadastreParcelLayer = L.layerGroup();
         this.hivesLayer = L.layerGroup();
+        this.giftsLayer = L.layerGroup();
         this.hiveRadiiLayer = L.layerGroup();
         this.sprayLayer = L.layerGroup();
         this.measureLayer = L.layerGroup();
@@ -139,6 +140,8 @@ export class AgroMapEngine {
         this.hiveRadiiLayer.addTo(this.map);
         this.sprayLayer.addTo(this.map);
         this.hivesLayer.addTo(this.map);
+        this._renderGiftPlaces();
+        this.giftsLayer.addTo(this.map);
         this.companyLayer.addTo(this.map);
         this.measureLayer.addTo(this.map);
         this.drawLayer.addTo(this.map);
@@ -181,12 +184,13 @@ export class AgroMapEngine {
         if (!this.map) return;
         const c = this.map.getCenter();
         try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lng.toFixed(4)}&current=temperature_2m,wind_speed_10m`);
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lng.toFixed(4)}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms&elevation=true`);
             const data = await res.json();
             if (data && data.current) {
                 const temp = data.current.temperature_2m;
-                const windKmh = data.current.wind_speed_10m;
-                const windMs = (windKmh / 3.6).toFixed(1);
+                const windMs = Number(data.current.wind_speed_10m).toFixed(1);
+                const elevEl = document.getElementById('weather-elev');
+                if (elevEl && data.elevation != null) elevEl.innerText = `Výška: ${Math.round(data.elevation)} m`;
 
                 const tempEl = document.getElementById('weather-temp');
                 const windEl = document.getElementById('weather-wind');
@@ -205,6 +209,78 @@ export class AgroMapEngine {
                 }
             }
         } catch {}
+    }
+
+    _renderGiftPlaces() {
+        const places = [
+            { name: 'Biopás pri Hurbanove', lat: 47.869, lng: 18.197, note: 'Ukážkový kvitnúci pás pre opeľovače.' },
+            { name: 'Komunitný kompost, Zvolen', lat: 48.578, lng: 19.118, note: 'Ukážkové miesto komunitnej pomoci.' },
+            { name: 'Obnova lúky, Poľana', lat: 48.641, lng: 19.48, note: 'Ukážková obnova lúky.' },
+            { name: 'Podporovaná plocha, Záhorie', lat: 48.455, lng: 16.98, note: 'Ukážková podporovaná plocha.' },
+            { name: 'Spoločná výsadba, Košice', lat: 48.756, lng: 21.24, note: 'Ukážková výsadba pre včely v okolí mesta.' }
+        ];
+        places.forEach((place) => {
+            const marker = L.circleMarker([place.lat, place.lng], {
+                radius: 7,
+                color: '#059669',
+                weight: 2,
+                fillColor: '#10B981',
+                fillOpacity: 0.9
+            });
+            marker.bindPopup(`<b>${place.name}</b><br>${place.note}`);
+            marker.addTo(this.giftsLayer);
+        });
+    }
+
+    async snapParcelAt(lat, lng) {
+        const bounds = this.map.getBounds();
+        const size = this.map.getSize();
+        const url = 'https://zbgisws.skgeodesy.sk/zbgis_kataster_mapserver/rest/services/Kataster/MapServer/identify'
+            + `?geometry=${encodeURIComponent(`${lng},${lat}`)}`
+            + '&geometryType=esriGeometryPoint&sr=4326&layers=all:1,2&tolerance=12'
+            + `&mapExtent=${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
+            + `&imageDisplay=${Math.round(size.x)},${Math.round(size.y)},96&returnGeometry=true&f=json`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            const feature = data.results && data.results[0];
+            const ring = feature && feature.geometry && feature.geometry.rings && feature.geometry.rings[0];
+            if (!feature || !ring || !ring.length) {
+                showNotificationToast('Kataster na tento klik nevrátil parcelu. Priblížte mapu a kliknite znova do parcely.', 'warning');
+                return;
+            }
+            const coords = ring.map((point) => [point[1], point[0]]);
+            const attrs = feature.attributes || {};
+            const parcel = {
+                register: String(attrs.REGISTER || attrs.REG || 'C').toUpperCase().startsWith('E') ? 'E' : 'C',
+                parcelNumber: String(attrs.PARCELA || attrs.PARCELNE_CISLO || 'parcela'),
+                kuName: attrs.KU_NAZOV || 'Katastrálne územie',
+                kuCode: attrs.KU_KOD || '',
+                obec: attrs.OBEC_NAZOV || '',
+                okres: attrs.OKRES_NAZOV || '',
+                lvNumber: String(attrs.LV_CISLO || ''),
+                druhPozemku: attrs.DRUH_POZEMKU_NAZOV || '',
+                vyuzitie: 'Parcela označená jedným klikom z katastra ÚGKK',
+                umiestnenie: '',
+                vlastnik: 'Evidovaný na liste vlastníctva',
+                areaSqM: Number(attrs.VYMERA || 0),
+                areaHa: attrs.VYMERA ? Number(attrs.VYMERA) / 10000 : 0,
+                source: 'ÚGKK SR identify',
+                center: [lat, lng],
+                coords
+            };
+            this.renderCadastreParcel(parcel);
+            store.setState({ activeCadastreParcel: parcel, interactionMode: 'NONE' });
+            const area = parcel.areaHa ? `${parcel.areaHa.toFixed(2)} ha` : 'výmera v atribútoch katastra';
+            showNotificationToast(`Pozemok ${parcel.parcelNumber} je označený. ${area}.`, 'success');
+            const areaInput = document.getElementById('spray-area');
+            const parcelInput = document.getElementById('spray-parcel');
+            if (areaInput && parcel.areaHa) areaInput.value = parcel.areaHa.toFixed(2);
+            if (parcelInput) parcelInput.value = `${parcel.register}-KN ${parcel.parcelNumber}`;
+        } catch (error) {
+            showNotificationToast('ÚGKK teraz neodpovedá. Pozemok sa označí, keď kataster vráti geometriu.', 'warning');
+        }
     }
 
     renderCadastreParcel(parcelData) {
@@ -428,6 +504,7 @@ export class AgroMapEngine {
                         <span class="text-xs font-extrabold text-amber-700">🐝 ${hive.count} rodín</span>
                     </div>
                     <div class="font-extrabold text-xs text-slate-900 pt-0.5">${hive.name}</div>
+                    <div class="text-[10px] text-slate-500">Ukážkové stanovište, nie živý export CEVZ.</div>
                     <div class="text-[11px] text-slate-700">Kontakt: <span class="text-emerald-700 font-semibold">${hive.email || 'neuvedený'}</span></div>
                     <div class="text-[10px] text-sky-700 font-mono font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
                     <div class="text-[10px] text-slate-500 font-mono">WGS84: ${hive.lat.toFixed(5)}°, ${hive.lng.toFixed(5)}°</div>
@@ -924,6 +1001,8 @@ export class AgroMapEngine {
                 this._handleMeasureClick(e.latlng);
             } else if (mode === 'DRAW_PARCEL') {
                 this._handleDrawParcelClick(e.latlng);
+            } else if (mode === 'SNAP_PARCEL') {
+                this.snapParcelAt(e.latlng.lat, e.latlng.lng);
             }
         });
     }
@@ -956,6 +1035,10 @@ export class AgroMapEngine {
                     modeBadge.classList.remove('hidden');
                     modeBadge.classList.add('flex');
                     modeText.innerText = '📏 Klikajte do mapy pre meranie dĺžky';
+                } else if (state.interactionMode === 'SNAP_PARCEL') {
+                    modeBadge.classList.remove('hidden');
+                    modeBadge.classList.add('flex');
+                    modeText.innerText = 'Kliknite do parcely. Hranicu doplní kataster.';
                 } else if (state.interactionMode === 'DRAW_PARCEL') {
                     modeBadge.classList.remove('hidden');
                     modeBadge.classList.add('flex');

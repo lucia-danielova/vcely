@@ -340,17 +340,29 @@ function switchSidebarTab(tabName) {
   });
 }
 
-function openAuthModal(mode = 'login') {
+function openAuthModal(mode = 'login', role = null) {
   appState.authMode = mode;
   switchAuthModalTab(mode);
-  const modal = $('auth-modal');
+  if (role) {
+    const radio = document.querySelector(`input[name="reg-role"][value="${role}"]`);
+    if (radio) {
+      radio.checked = true;
+      updateRegisterRoleFields(role);
+    }
+  }
+  const modal = $('modal-community-auth');
   if (!modal) return;
   modal.classList.remove('hidden');
+  if (mode === 'register') ensureRegistrationMiniMap();
   showToast(mode === 'login' ? 'Prihlasovací formulár je otvorený' : 'Registrácia je otvorená', 'info');
 }
 
+function openProfileRegistration(role) {
+  openAuthModal('register', role);
+}
+
 function closeAuthModal() {
-  const modal = $('auth-modal');
+  const modal = $('modal-community-auth');
   if (!modal) return;
   modal.classList.add('hidden');
 }
@@ -375,6 +387,7 @@ function switchAuthModalTab(tabName) {
     registerButton.classList.toggle('text-white', !isLogin);
     registerButton.classList.toggle('text-slate-600', isLogin);
   }
+  if (!isLogin) ensureRegistrationMiniMap();
 }
 
 function populateProfileForm(user = getCurrentUserSafe()) {
@@ -965,22 +978,30 @@ function updateRegisterRoleFields(role) {
   const professionalBlock = $('reg-professional-block');
   const communityBlock = $('reg-community-block');
   const lpisBlock = $('reg-lpis-block');
+  const farmerSearch = $('reg-farmer-search-wrap');
+  const beeProBlock = $('reg-bee-pro-block');
   const addressWrap = $('reg-address-wrap');
-  const companySearch = $('reg-company-search');
+  const icoWrap = $('reg-ico-wrap');
+  const companySearch = $('farmer-registry-search');
   const companySuggestions = $('reg-company-suggestions');
   const communityTitle = $('reg-community-title');
   const communityHelp = $('reg-community-help');
+  const isFarmer = role === 'AGRO' || role === 'AGRO_PRO';
+  const isProBee = role === 'BEEKEEPER';
 
   const isProfessional = professionalRegisterRoles.has(role);
   const isCommunity = communityRegisterRoles.has(role);
 
   if (professionalBlock) professionalBlock.classList.toggle('hidden', !isProfessional);
   if (communityBlock) communityBlock.classList.toggle('hidden', !isCommunity);
-  if (lpisBlock) lpisBlock.classList.toggle('hidden', role !== 'AGRO' && role !== 'AGRO_PRO');
-  if (addressWrap) addressWrap.classList.toggle('hidden', !isProfessional && !isCommunity ? false : isProfessional && role === 'BEEKEEPER' ? false : false);
+  if (farmerSearch) farmerSearch.classList.toggle('hidden', !isFarmer);
+  if (beeProBlock) beeProBlock.classList.toggle('hidden', !isProBee);
+  if (lpisBlock) lpisBlock.classList.toggle('hidden', !isFarmer);
+  if (addressWrap) addressWrap.classList.toggle('hidden', isCommunity);
+  if (icoWrap) icoWrap.classList.toggle('hidden', isCommunity || isProBee);
 
   if (companySearch) {
-    companySearch.placeholder = role === 'BEEKEEPER' ? 'napr. Včelárska spoločnosť / CEVZ' : 'napr. PD Devio / 00190225';
+    companySearch.placeholder = 'začnite písať názov alebo IČO';
   }
 
   if (nameLabel) {
@@ -996,8 +1017,7 @@ function updateRegisterRoleFields(role) {
   if (label && input) {
     if (role === 'BEEKEEPER') {
       label.textContent = 'CEVZ / registračný kód';
-      input.placeholder = 'napr. CEVZ-BA-0142';
-      if (!input.value) input.value = 'CEVZ-BA-0142';
+      input.placeholder = 'číslo z evidencie včelstiev';
     } else if (role === 'AGRO' || role === 'AGRO_PRO') {
       label.textContent = 'IČO subjektu';
       input.placeholder = 'napr. 00190225';
@@ -1009,36 +1029,46 @@ function updateRegisterRoleFields(role) {
 
   if (communityTitle) {
     const titles = {
-      BEE_HOBBY: 'Vyznačte na mape, kde máte svoje úle.',
-      BEE_BEGINNER: 'Vyznačte na mape, kde plánujete mať svoje úle.',
+      BEE_HOBBY: 'Vyznačte na mape, kde máte svoje úle',
+      BEE_BEGINNER: 'Vyznačte na mape, kde máte svoje úle',
       GARDENER: 'Kde sa nachádza vaša záhrada?',
-      GARDEN_NEW: 'Kde sa nachádza vaša záhrada alebo záhon?'
+      GARDEN_NEW: 'Kde sa nachádza vaša záhrada?'
     };
     communityTitle.textContent = titles[role] || 'Vyberte svoju lokalitu';
   }
 
   if (communityHelp) {
     const hints = {
-      BEE_HOBBY: 'Vďaka tomuto bodu môže systém včas varovať o plánovanom postreku v okruhu 3 km od vašej lokality.',
-      BEE_BEGINNER: 'Tento bod pomôže systému upozorniť vás na predpokladaný postrek v okruhu 3 km od vašich úľov.',
-      GARDENER: 'Pridaním svojej záhrady sa môžete zapojiť do siete Bonusových darov a vidieť, kde sa v okolí nachádzajú včely.',
-      GARDEN_NEW: 'Aj malá záhrada môže pomôcť ochrane biodiverzity — včely, kompost a biopásy začínajú práve tu.'
+      BEE_HOBBY: 'Vďaka tomuto špendlíku vás systém včas varuje, ak sa v 3 km okolí bude plánovať postrek.',
+      BEE_BEGINNER: 'Vďaka tomuto špendlíku vás systém včas varuje, ak sa v 3 km okolí bude plánovať postrek.',
+      GARDENER: 'Keď záhradu pridáte, pripojíte pozemok k Bonusovým darom a uvidíte opeľovačov v okolí, ktorým pomôžu kvety.',
+      GARDEN_NEW: 'Keď záhradu pridáte, pripojíte pozemok k Bonusovým darom a uvidíte opeľovačov v okolí, ktorým pomôžu kvety.'
     };
     communityHelp.textContent = hints[role] || 'Vďaka tejto lokalite budete dostávať relevantné upozornenia o vašom okolí.';
   }
 
   if (companySuggestions) companySuggestions.classList.add('hidden');
-  const pin = $('reg-location-pin');
-  if (pin) pin.classList.add('hidden');
   const lat = $('reg-location-lat');
   const lng = $('reg-location-lng');
   if (lat) lat.value = '';
   if (lng) lng.value = '';
+  if (isCommunity) ensureRegistrationMiniMap();
 }
 
-function renderCompanySuggestions(query = '') {
+function showFarmerShield(entity) {
+  const shield = $('farmer-verified-shield');
+  if (!shield || !entity) return;
+  const seat = entity.address || entity.city || 'Sídlo';
+  const live = /RegisterUZ|RÚZ/.test(entity.source || '');
+  shield.textContent = live
+    ? `Overené v RÚZ: ${entity.ico || 'IČO'} • ${seat}`
+    : `Vybraný subjekt: ${entity.ico || 'IČO'} • ${seat}`;
+  shield.classList.remove('hidden');
+}
+
+async function renderCompanySuggestions(query = '') {
   const suggestions = $('reg-company-suggestions');
-  const input = $('reg-company-search');
+  const input = $('farmer-registry-search');
   if (!suggestions || !input) return;
 
   const value = String(query || '').trim();
@@ -1060,6 +1090,16 @@ function renderCompanySuggestions(query = '') {
     })
     .slice(0, 5);
 
+  const digits = value.replace(/\s/g, '');
+  if (/^\d{6,8}$/.test(digits)) {
+    try {
+      const live = await publicApi.fetchEntityByICO(digits);
+      if (live && !hits.some((item) => item.ico === live.ico)) hits.unshift(live);
+    } catch (error) {
+      console.warn('RegisterUZ lookup failed:', error);
+    }
+  }
+
   if (!hits.length) {
     suggestions.innerHTML = '<div class="px-2 py-2 text-[11px] text-slate-500">Nenašli sa žiadne oficiálne subjekty.</div>';
     suggestions.classList.remove('hidden');
@@ -1067,7 +1107,7 @@ function renderCompanySuggestions(query = '') {
   }
 
   suggestions.innerHTML = hits.map((entity) => `
-    <button type="button" class="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-left transition hover:bg-emerald-100" data-entity-ico="${entity.ico || ''}" data-entity-name="${escapeHtml(entity.name || '')}" data-entity-address="${escapeHtml(entity.address || '')}">
+    <button type="button" class="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-left transition hover:bg-emerald-100" data-entity-ico="${entity.ico || ''}" data-entity-name="${escapeHtml(entity.name || '')}" data-entity-address="${escapeHtml(entity.address || '')}" data-entity-source="${escapeHtml(entity.source || '')}">
       <div class="font-bold text-slate-900">${escapeHtml(entity.name || 'Neznámy subjekt')}</div>
       <div class="mt-0.5 text-[10px] text-slate-600">${escapeHtml(entity.ico || 'IČO neznáme')} · ${escapeHtml(entity.city || entity.address || 'Sídlo neuvedené')}</div>
     </button>
@@ -1087,6 +1127,7 @@ function renderCompanySuggestions(query = '') {
       if (icoInput) icoInput.value = icoValue;
       if (input) input.value = searchValue;
       suggestions.classList.add('hidden');
+      showFarmerShield({ ico: icoValue, address: addressValue, name: searchValue, source: button.getAttribute('data-entity-source') || '' });
       showToast(`Vybraný subjekt: ${searchValue}`, 'success');
     });
   });
@@ -1094,25 +1135,47 @@ function renderCompanySuggestions(query = '') {
   suggestions.classList.remove('hidden');
 }
 
-function handleCommunityMapClick(event) {
-  const surface = $('reg-map-surface');
-  const pin = $('reg-location-pin');
+let registrationMiniMap = null;
+let registrationMiniMarker = null;
+
+function writeRegistrationPin(latlng) {
   const latInput = $('reg-location-lat');
   const lngInput = $('reg-location-lng');
-  if (!surface || !pin || !latInput || !lngInput) return;
+  const readout = $('reg-location-readout');
+  if (latInput) latInput.value = latlng.lat.toFixed(6);
+  if (lngInput) lngInput.value = latlng.lng.toFixed(6);
+  const jtsk = AgroApiService.wgs84ToSJTSK(latlng.lat, latlng.lng);
+  if (readout) {
+    readout.textContent = `WGS84 ${latlng.lat.toFixed(5)}° s. š., ${latlng.lng.toFixed(5)}° v. d. · S-JTSK Y ${jtsk.y} m, X ${jtsk.x} m`;
+  }
+}
 
-  const rect = surface.getBoundingClientRect();
-  const x = Math.min(Math.max(event.clientX - rect.left, 14), rect.width - 14);
-  const y = Math.min(Math.max(event.clientY - rect.top, 14), rect.height - 14);
+function ensureRegistrationMiniMap() {
+  const host = $('registration-mini-map');
+  if (!host || !window.L) return;
+  if (!registrationMiniMap) {
+    registrationMiniMap = window.L.map(host, { zoomControl: true, attributionControl: false }).setView([48.67, 19.5], 7);
+    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: '© Esri'
+    }).addTo(registrationMiniMap);
+    registrationMiniMap.on('click', (event) => {
+      if (!registrationMiniMarker) {
+        registrationMiniMarker = window.L.marker(event.latlng, { draggable: true }).addTo(registrationMiniMap);
+        registrationMiniMarker.on('dragend', () => writeRegistrationPin(registrationMiniMarker.getLatLng()));
+      } else {
+        registrationMiniMarker.setLatLng(event.latlng);
+      }
+      writeRegistrationPin(event.latlng);
+    });
+  }
+  window.setTimeout(() => registrationMiniMap.invalidateSize(), 60);
+}
 
-  pin.style.left = `${x}px`;
-  pin.style.top = `${y}px`;
-  pin.classList.remove('hidden');
-
-  const lat = 48.6 - (y / rect.height) * 0.9;
-  const lng = 17.0 + (x / rect.width) * 1.2;
-  latInput.value = String(lat.toFixed(5));
-  lngInput.value = String(lng.toFixed(5));
+function handleCommunityMapClick(event) {
+  if (!registrationMiniMap) ensureRegistrationMiniMap();
+  if (!event || !event.latlng) return;
+  writeRegistrationPin(event.latlng);
 }
 
 function autofillRegistrationFromICO() {
@@ -1132,8 +1195,9 @@ function autofillRegistrationFromICO() {
   const addressInput = $('reg-address');
   if (nameInput) nameInput.value = match.name;
   if (addressInput) addressInput.value = match.address;
-  const companySearch = $('reg-company-search');
+  const companySearch = $('farmer-registry-search');
   if (companySearch) companySearch.value = match.name;
+  showFarmerShield(match);
 
   showToast(`Údaje pre ${match.name} boli doplnené automaticky`, 'success');
 }
@@ -1210,12 +1274,22 @@ async function submitRegisterForm(event) {
     return;
   }
 
-  const lpisId = $('reg-lpis-id')?.value?.trim() || '';
+  const lpisId = $('farmer-lpis-id')?.value?.trim() || '';
   const locationLat = $('reg-location-lat')?.value?.trim() || '';
   const locationLng = $('reg-location-lng')?.value?.trim() || '';
-  const companySearch = $('reg-company-search')?.value?.trim() || '';
+  const companySearch = $('farmer-registry-search')?.value?.trim() || '';
+  const cevzCode = $('reg-cevz')?.value?.trim() || '';
+  const colonyCount = Number($('reg-colonies')?.value || 0);
   const isProfessionalRole = professionalRegisterRoles.has(role);
   const isCommunityRole = communityRegisterRoles.has(role);
+  if (isCommunityRole && (!locationLat || !locationLng)) {
+    showToast('Označte bod na mape', 'warning');
+    return;
+  }
+  if (role === 'BEEKEEPER' && !cevzCode) {
+    showToast('Doplňte evidenčné číslo včelára v CEVZ', 'warning');
+    return;
+  }
   const normalizedRole = role;
 
   const request = {
@@ -1224,7 +1298,8 @@ async function submitRegisterForm(event) {
     email,
     password,
     ico: isProfessionalRole ? ico : '',
-    cevz: role === 'BEEKEEPER' ? (ico || '') : '',
+    cevz: role === 'BEEKEEPER' ? cevzCode : '',
+    colonyCount: role === 'BEEKEEPER' ? colonyCount : 0,
     phone,
     address,
     lpisId: role === 'AGRO' || role === 'AGRO_PRO' ? lpisId : '',
@@ -1261,7 +1336,8 @@ async function submitRegisterForm(event) {
     email: email.toLowerCase(),
     passwordHash: password,
     ico: isProfessionalRole ? (ico || '') : '',
-    cevz: role === 'BEEKEEPER' ? (ico || `CEVZ-SK-${Math.floor(1000 + Math.random() * 9000)}`) : '',
+    cevz: role === 'BEEKEEPER' ? cevzCode : '',
+    colonyCount: role === 'BEEKEEPER' ? colonyCount : 0,
     phone,
     address,
     lpisId: role === 'AGRO' || role === 'AGRO_PRO' ? lpisId : '',
@@ -1574,6 +1650,239 @@ function triggerSprayAlertEmails(lat, lng, collisionsCount, totalColonies) {
   showToast(`Odoslané výstrahy pre ${collisionsCount} stanovíšť (${totalColonies} rodín)`, 'info');
 }
 
+const SPRAY_BOOK_KEY = 'vcely_spray_book_v1';
+const VARROA_KEY = 'vcely_varroa_v1';
+
+function readJsonList(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function openSprayBook() {
+  const modal = $('spray-book-modal');
+  if (!modal) return;
+  const wind = ($('weather-wind')?.textContent || '').match(/([\d.]+)/);
+  const temp = ($('weather-temp')?.textContent || '').match(/-?[\d.]+/);
+  if ($('spray-wind') && wind && !$('spray-wind').value) $('spray-wind').value = wind[1];
+  if ($('spray-temp') && temp && !$('spray-temp').value) $('spray-temp').value = temp[0];
+  if ($('spray-when') && !$('spray-when').value) {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    $('spray-when').value = now.toISOString().slice(0, 16);
+  }
+  renderSprayBookList();
+  modal.classList.remove('hidden');
+}
+
+function closeSprayBook() {
+  $('spray-book-modal')?.classList.add('hidden');
+}
+
+function renderSprayBookList() {
+  const host = $('spray-book-list');
+  if (!host) return;
+  const rows = readJsonList(SPRAY_BOOK_KEY);
+  host.innerHTML = rows.length
+    ? rows.map((row) => `<div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2"><b>${escapeHtml(row.product)}</b> · ${escapeHtml(row.parcel)} · ${escapeHtml(String(row.areaHa))} ha<br>${escapeHtml(row.when)} · vietor ${escapeHtml(String(row.windMs))} m/s · ${escapeHtml(String(row.tempC))} °C</div>`).join('')
+    : '<p class="text-slate-500">Kniha je zatiaľ prázdna.</p>';
+}
+
+function saveSprayBookEntry(event) {
+  event.preventDefault();
+  const rows = readJsonList(SPRAY_BOOK_KEY);
+  rows.unshift({
+    id: Date.now(),
+    parcel: $('spray-parcel')?.value?.trim() || '',
+    areaHa: Number($('spray-area')?.value || 0),
+    product: $('spray-product')?.value?.trim() || '',
+    windMs: Number($('spray-wind')?.value || 0),
+    tempC: Number($('spray-temp')?.value || 0),
+    when: $('spray-when')?.value || ''
+  });
+  localStorage.setItem(SPRAY_BOOK_KEY, JSON.stringify(rows));
+  renderSprayBookList();
+  showToast('Záznam postreku je v knihe', 'success');
+  event.target.reset();
+}
+
+function varroaTone(drop) {
+  if (drop < 3) return { tone: 'zelená', label: 'V norme', cls: 'border-emerald-300 bg-emerald-50 text-emerald-900' };
+  if (drop <= 10) return { tone: 'žltá', label: 'Zvýšený spad', cls: 'border-amber-300 bg-amber-50 text-amber-950' };
+  return { tone: 'červená', label: 'Nutná kritická liečba — potvrďte s RVPS', cls: 'border-rose-300 bg-rose-50 text-rose-900' };
+}
+
+function openVarroaMonitor() {
+  $('varroa-modal')?.classList.remove('hidden');
+  renderVarroaList();
+  const input = $('varroa-drop');
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = '1';
+    input.addEventListener('input', () => {
+      const tone = varroaTone(Number(input.value || 0));
+      const box = $('varroa-semafor');
+      if (!box) return;
+      box.className = `rounded-xl border px-3 py-2 text-xs font-bold ${tone.cls}`;
+      box.textContent = `${tone.label} (${tone.tone}) · spad ${input.value || 0} / 24 h`;
+    });
+  }
+}
+
+function closeVarroaMonitor() {
+  $('varroa-modal')?.classList.add('hidden');
+}
+
+function renderVarroaList() {
+  const host = $('varroa-list');
+  if (!host) return;
+  const rows = readJsonList(VARROA_KEY);
+  host.innerHTML = rows.length
+    ? rows.map((row) => `<div class="rounded-xl border border-stone-200 px-3 py-2"><b>${escapeHtml(row.site)}</b> · spad ${escapeHtml(String(row.drop))} / 24 h · ${escapeHtml(row.label)}</div>`).join('')
+    : '<p class="text-slate-500">Zatiaľ bez záznamu spadu.</p>';
+}
+
+function saveVarroaEntry(event) {
+  event.preventDefault();
+  const drop = Number($('varroa-drop')?.value || 0);
+  const tone = varroaTone(drop);
+  const rows = readJsonList(VARROA_KEY);
+  rows.unshift({
+    id: Date.now(),
+    site: $('varroa-site')?.value?.trim() || '',
+    drop,
+    label: tone.label,
+    tone: tone.tone,
+    when: new Date().toISOString()
+  });
+  localStorage.setItem(VARROA_KEY, JSON.stringify(rows));
+  renderVarroaList();
+  showToast(`Semafor: ${tone.label}`, drop > 10 ? 'warning' : 'success');
+}
+
+async function exportSprayBook(kind) {
+  const rows = readJsonList(SPRAY_BOOK_KEY);
+  if (!rows.length) {
+    showToast('Kniha postrekov je prázdna', 'warning');
+    return;
+  }
+  if (kind === 'csv') {
+    const header = 'datum;parcela;vymera_ha;pripravok;vietor_m_s;teplota_c';
+    const body = rows.map((row) => [row.when, row.parcel, String(row.areaHa).replace('.', ','), row.product, String(row.windMs).replace('.', ','), String(row.tempC).replace('.', ',')].join(';')).join('\n');
+    downloadBlob(new Blob(['\uFEFF' + header + '\n' + body], { type: 'text/csv;charset=utf-8' }), 'kniha-postrekov.csv');
+    showToast('CSV so slovenskou diakritikou je pripravené', 'success');
+    return;
+  }
+  if (kind === 'xls') {
+    const xml = spreadsheetXml(rows);
+    downloadBlob(new Blob([xml], { type: 'application/vnd.ms-excel' }), 'kniha-postrekov.xls');
+    showToast('Formátovaný zošit je pripravený', 'success');
+    return;
+  }
+  const text = rows.map((row) => `${row.when} | ${row.parcel} | ${row.areaHa} ha | ${row.product} | vietor ${row.windMs} m/s | ${row.tempC} °C`).join('\n');
+  const hash = await sha256Hex(text);
+  const pdf = buildLandscapePdf(text, hash);
+  downloadBlob(new Blob([pdf], { type: 'application/pdf' }), 'kniha-postrekov.pdf');
+  showToast('Úradné PDF s hashom SHA-256 je pripravené', 'success');
+}
+
+function spreadsheetXml(rows) {
+  const cell = (value) => `<Cell><Data ss:Type="String">${escapeHtml(String(value))}</Data></Cell>`;
+  const lines = rows.map((row) => `<Row>${cell(row.when)}${cell(row.parcel)}${cell(row.areaHa)}${cell(row.product)}${cell(row.windMs)}${cell(row.tempC)}</Row>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Worksheet ss:Name="Kniha postrekov"><Table>
+<Row>${cell('Dátum')}${cell('Parcela')}${cell('Výmera ha')}${cell('Prípravok')}${cell('Vietor m/s')}${cell('Teplota °C')}</Row>
+${lines}
+</Table></Worksheet></Workbook>`;
+}
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((part) => part.toString(16).padStart(2, '0')).join('');
+}
+
+function pdfEscape(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function buildLandscapePdf(body, hash) {
+  const lines = ['Uradna kniha postrekov', 'Zakon c. 405/2011 Z. z.', ''].concat(body.split('\n')).concat(['', 'SHA-256', hash]);
+  const commands = ['BT', '/F1 11 Tf', '40 520 Td', '14 TL'];
+  lines.slice(0, 28).forEach((line, index) => {
+    const text = pdfEscape(line.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+    commands.push(index === 0 ? `(${text}) Tj` : `T* (${text}) Tj`);
+  });
+  commands.push('ET');
+  const stream = commands.join('\n');
+  const objects = [
+    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+    '2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj',
+    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj',
+    `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`,
+    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj'
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object) => {
+    offsets.push(pdf.length);
+    pdf += object + '\n';
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return pdf;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportVarroaProtocol() {
+  const rows = readJsonList(VARROA_KEY);
+  if (!rows.length) {
+    showToast('Monitoring klieštika je prázdny', 'warning');
+    return;
+  }
+  const text = rows.map((row) => `${row.when} | ${row.site} | spad ${row.drop}/24h | ${row.label}`).join('\n');
+  const hash = await sha256Hex(text);
+  downloadBlob(new Blob([buildLandscapePdf(`Monitoring Varroa destructor\n${text}`, hash)], { type: 'application/pdf' }), 'protokol-varroa-rvps.pdf');
+  showToast('Protokol pre RVPS je pripravený', 'success');
+}
+
+function toggleSnapParcelMode() {
+  appState.activeTool = 'snap';
+  store.setState({ interactionMode: 'SNAP_PARCEL' });
+  showToast('Kliknite do mapy. Pozemok sa načíta z katastra, ak ÚGKK odpovie.', 'info');
+}
+
+function toggleGiftsLayer(checked) {
+  if (appMapEngine && appMapEngine.giftsLayer) {
+    if (checked) appMapEngine.giftsLayer.addTo(appMapEngine.map);
+    else appMapEngine.map.removeLayer(appMapEngine.giftsLayer);
+  }
+}
+
+function toggleMapFullscreen() {
+  const host = $('map-stage') || $('interactive-nature-map');
+  if (!host) return;
+  if (!document.fullscreenElement) host.requestFullscreen?.();
+  else document.exitFullscreen?.();
+}
+
 function initUi() {
   // Prednastaví východziu perzónu pre appku na pozadí, ale NEZATVÁRA úvodnú obrazovku —
   // tá musí ostať prvým, čo používateľ uvidí (srdcom je mapa a posolstvo o ochrane včiel).
@@ -1594,7 +1903,7 @@ function initUi() {
     }).catch(() => backendApi.logout());
   }
 
-  const authModal = $('auth-modal');
+  const authModal = $('modal-community-auth');
   const userDashboardModal = $('user-dashboard-modal');
   if (authModal) authModal.classList.add('hidden');
   if (userDashboardModal) userDashboardModal.classList.add('hidden');
@@ -1610,7 +1919,7 @@ function initUi() {
 
 function initMapApp() {
   if (!appMapEngine) {
-    appMapEngine = new AgroMapEngine('map', null, false);
+    appMapEngine = new AgroMapEngine('interactive-nature-map', null, false);
     window.agrogisMap = appMapEngine;
   }
 }
@@ -1685,6 +1994,18 @@ window.closeHiveModal = closeHiveModal;
 window.confirmAddHive = confirmAddHive;
 window.printInspectionReport = printInspectionReport;
 window.exportGeoJSON = exportGeoJSON;
+window.openProfileRegistration = openProfileRegistration;
+window.toggleSnapParcelMode = toggleSnapParcelMode;
+window.toggleGiftsLayer = toggleGiftsLayer;
+window.toggleMapFullscreen = toggleMapFullscreen;
+window.openSprayBook = openSprayBook;
+window.closeSprayBook = closeSprayBook;
+window.saveSprayBookEntry = saveSprayBookEntry;
+window.exportSprayBook = exportSprayBook;
+window.openVarroaMonitor = openVarroaMonitor;
+window.closeVarroaMonitor = closeVarroaMonitor;
+window.saveVarroaEntry = saveVarroaEntry;
+window.exportVarroaProtocol = exportVarroaProtocol;
 window.triggerSprayAlertEmails = triggerSprayAlertEmails;
 window.updatePersonaUi = updatePersonaUi;
 window.showToast = showToast;
