@@ -320,7 +320,7 @@ function syncLayerBar(state) {
     if (kataster) kataster.classList.toggle('is-on', Boolean(state.isKatasterVisible));
     if (lpis) lpis.classList.toggle('is-on', state.isLpisLayerVisible !== false);
     if (hives) hives.classList.toggle('is-on', Boolean(state.isHivesLayerVisible && state.isHiveRadiiVisible));
-    if (ortho) ortho.classList.add('is-on');
+    if (ortho) ortho.classList.toggle('is-on', (document.body.dataset.basemap || 'ortho') === 'ortho');
     const katasterCheck = document.getElementById('layer-kataster');
     const lpisCheck = document.getElementById('layer-lpis');
     const hivesCheck = document.getElementById('layer-hives');
@@ -462,17 +462,14 @@ function bindFieldFab() {
     if (!fab || !menu || fab.dataset.bound === 'true') return;
     fab.dataset.bound = 'true';
     fab.addEventListener('click', () => {
-        menu.hidden = !menu.hidden;
-        fab.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+        window.locateUserGPS?.();
     });
     document.getElementById('saas-fab-hive')?.addEventListener('click', () => {
         menu.hidden = true;
-        fab.setAttribute('aria-expanded', 'false');
         window.toggleAddHiveMode?.();
     });
     document.getElementById('saas-fab-spray')?.addEventListener('click', () => {
         menu.hidden = true;
-        fab.setAttribute('aria-expanded', 'false');
         if (!navigator.geolocation) {
             window.showToast?.('GPS nie je podporované v tomto prehliadači', 'warning');
             return;
@@ -502,10 +499,25 @@ function bindOmnibox() {
         renderSuggestions(omni.value);
     });
     omni.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            const box = document.getElementById('saas-omni-suggest');
+            const filters = document.getElementById('saas-omni-filters');
+            if (box) box.hidden = true;
+            if (filters) {
+                filters.hidden = true;
+                filterBtn?.setAttribute('aria-expanded', 'false');
+            }
+            return;
+        }
         if (event.key === 'Enter') {
             event.preventDefault();
             runOmniboxSearch(omni.value);
         }
+    });
+    document.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('#saas-omnibox, #saas-omni-suggest, #saas-omni-filter, #saas-omni-filters')) return;
+        const box = document.getElementById('saas-omni-suggest');
+        if (box) box.hidden = true;
     });
     filterBtn?.addEventListener('click', () => {
         if (!filters) return;
@@ -528,22 +540,14 @@ export function bindSaasShell() {
     const coord = document.getElementById('geo-coord-pill');
     if (coord && coord.dataset.bound !== 'true') {
         coord.dataset.bound = 'true';
-        coord.addEventListener('click', (event) => {
-            if (event.target.closest('#geo-coord-copy')) {
-                copyCoordinates();
-                return;
-            }
-            const open = coord.classList.toggle('is-open');
-            coord.setAttribute('aria-expanded', open ? 'true' : 'false');
-        });
+        const copyFromPill = (event) => {
+            event.preventDefault();
+            copyCoordinates();
+        };
+        coord.addEventListener('click', copyFromPill);
         coord.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            if (coord.classList.contains('is-open')) copyCoordinates();
-            else {
-                coord.classList.add('is-open');
-                coord.setAttribute('aria-expanded', 'true');
-            }
+            copyFromPill(event);
         });
     }
 

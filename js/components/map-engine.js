@@ -233,6 +233,7 @@ export class AgroMapEngine {
                     }
                     statusEl.className = statusClass;
                     statusEl.dataset.level = level;
+                    statusEl.title = label;
                     statusEl.innerText = label;
                     if (pill) pill.dataset.level = level;
                     if (iconEl) iconEl.textContent = icon;
@@ -1085,7 +1086,7 @@ export class AgroMapEngine {
             .slice(0, 5);
         const nearbyHtml = nearby.length
             ? nearby.map((row) => {
-                const km = (row.meters / 1000).toFixed(2);
+                const km = (row.meters / 1000).toFixed(1).replace('.', ',');
                 const hot = row.meters <= 3000 ? ' inspector-hot' : '';
                 return `<div class="inspector-near${hot}"><span>${this._esc(row.hive.name)}</span><b>${km} km</b></div>`;
             }).join('')
@@ -1100,7 +1101,7 @@ export class AgroMapEngine {
                 <div>Vlastník / užívateľ: <b>${this._esc(owner)}</b></div>
                 <div>Plodina: <b>${this._esc(crop)}</b></div>
                 <div>3 km ochrana: ${protection}</div>
-                <div>Včelnice v okolí</div>
+                <div>Blízke včelnice</div>
                 ${nearbyHtml}
             </div>
         `;
@@ -1118,10 +1119,11 @@ export class AgroMapEngine {
         }
         if (ids.size && Array.isArray(ring) && ring.length > 2) {
             this._collisionHatch = L.polygon(ring, {
-                color: '#e11d48',
+                color: '#F97316',
                 weight: 2,
                 dashArray: '4 4',
-                fillOpacity: 0.2,
+                fillColor: '#EA580C',
+                fillOpacity: 0.28,
                 interactive: false,
                 className: 'lpis-collision-hatch'
             });
