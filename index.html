@@ -64,8 +64,9 @@
 
     <!-- Vlastný ekologický štýl -->
     <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/saas-dashboard.css">
 </head>
-<body class="bg-[#e8efe9] text-slate-800 font-sans h-screen flex flex-col overflow-hidden select-none android-app-shell">
+<body class="bg-[#e8efe9] text-slate-800 font-sans h-screen flex flex-col overflow-hidden select-none android-app-shell saas-app" data-mode="farmer">
 
     <!-- Natívny splash pri štarte (PWA / Android) -->
     <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Načítavam aplikáciu">
@@ -249,14 +250,19 @@
         <div class="flex items-center space-x-2.5">
             
             <!-- Živý Meteo-Semafor pre bezpečnosť postreku -->
-            <div id="weather-safety-pill" class="hidden xl:flex items-center space-x-2.5 bg-stone-100/90 border border-stone-300 px-3.5 py-1.5 rounded-xl text-xs shadow-inner">
-                <span id="weather-icon" class="text-base">🌤️</span>
-                <span id="weather-temp" class="font-mono font-bold text-slate-800">-- °C</span>
-                <span class="text-stone-300">|</span>
-                <span id="weather-wind" class="font-mono text-slate-700 font-semibold">Vietor: -- m/s</span>
-                <span class="text-stone-300">|</span>
-                <span id="weather-elev" class="font-mono text-slate-600">Výška: -- m</span>
-                <span id="weather-spray-status" class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md">Postrek Bezpečný</span>
+            <div id="weather-safety-wrap">
+                <button type="button" id="weather-safety-pill" class="saas-weather-pill" aria-expanded="false" aria-controls="weather-condition-card">
+                    <span id="weather-icon" class="text-base" aria-hidden="true">🌤️</span>
+                    <span id="weather-place">Stred mapy</span>
+                    <span id="weather-temp" class="font-mono font-bold">-- °C</span>
+                    <span id="weather-wind" class="font-mono font-semibold">Vietor: -- m/s</span>
+                    <span id="weather-spray-status" class="saas-spray-badge is-safe" data-level="safe">Postrek Bezpečný</span>
+                </button>
+                <div id="weather-condition-card" hidden>
+                    <div class="saas-weather-card-row"><span>Teplota</span><b id="weather-detail-temp">-- °C</b></div>
+                    <div class="saas-weather-card-row"><span>Vietor</span><b id="weather-detail-wind">-- m/s</b></div>
+                    <div class="saas-weather-card-row"><span>Nadmorská výška</span><b id="weather-elev">Výška: -- m</b></div>
+                </div>
             </div>
 
             <!-- Indikátor zapnutého nástroja v mape -->
@@ -306,7 +312,57 @@
         
         <!-- Ľavý bočný panel -->
         <aside id="left-sidebar" class="w-80 md:w-[410px] eco-sidebar flex flex-col z-20 shrink-0 transition-all duration-300">
-            
+            <nav class="saas-rail" aria-label="Pracovné panely">
+                <button type="button" data-rail="search" class="is-active" onclick="switchSidebarTab('search')" title="Dashboard a hľadanie">
+                    <span aria-hidden="true">⌕</span>
+                    <span>Hľadať</span>
+                </button>
+                <button type="button" data-rail="layers" onclick="switchSidebarTab('layers')" title="Vrstvy">
+                    <span aria-hidden="true">▤</span>
+                    <span>Vrstvy</span>
+                </button>
+                <button type="button" data-rail="tools" onclick="switchSidebarTab('tools')" title="Nástroje">
+                    <span aria-hidden="true">✎</span>
+                    <span>Nástroje</span>
+                </button>
+                <button type="button" data-rail="portal" onclick="switchSidebarTab('portal')" title="Účet">
+                    <span aria-hidden="true">☺</span>
+                    <span>Účet</span>
+                </button>
+            </nav>
+            <div class="saas-dock-main">
+            <div id="saas-sheet-handle" class="saas-sheet-handle" aria-hidden="true"><span></span></div>
+            <div class="saas-product">
+                <strong>Včely a pôda</strong>
+                <button type="button" class="saas-mission-link" onclick="openLandingPortal()">Ak nebudú včely, nebude nič.</button>
+            </div>
+            <div class="saas-omni">
+                <input id="saas-omnibox" type="search" autocomplete="off" placeholder="Hľadať parcelu, IČO, kataster alebo obec..." aria-label="Hľadať parcelu, IČO, kataster alebo obec">
+                <button type="button" id="saas-omni-filter" class="saas-filter-btn" aria-expanded="false" aria-controls="saas-omni-filters" title="Rýchly filter">▾</button>
+                <div id="saas-omni-filters" class="saas-omni-filters" hidden>
+                    <button type="button" data-omni-filter="ckn">C-KN</button>
+                    <button type="button" data-omni-filter="ekn">E-KN</button>
+                    <button type="button" data-omni-filter="ico">IČO</button>
+                    <button type="button" data-omni-filter="lpis">LPIS</button>
+                    <button type="button" data-omni-filter="hives">Včelnice</button>
+                </div>
+                <div id="saas-omni-suggest" class="saas-omni-suggest" hidden></div>
+            </div>
+            <div class="saas-mode-switch" role="tablist" aria-label="Režim aplikácie">
+                <button type="button" data-dashboard-mode="hobby">Hobby</button>
+                <button type="button" data-dashboard-mode="farmer" class="is-active">Farmár</button>
+                <button type="button" data-dashboard-mode="beekeeper">Včelár</button>
+            </div>
+            <button type="button" id="farmer-spray-report-btn" class="saas-farmer-only" onclick="openSprayBook()">Nahlásiť plánovaný postrek</button>
+            <div class="saas-beekeeper-only">
+                <p>Včelnice, 3 km ochranné zóny a hlásenia postrekov v okolí.</p>
+                <div class="saas-bee-actions">
+                    <button type="button" onclick="toggleAddHiveMode()">Spravovať včelnice</button>
+                    <button type="button" onclick="switchSidebarTab('layers')">3 km zóny</button>
+                    <button type="button" onclick="switchSidebarTab('portal')">Hlásenia postrekov</button>
+                </div>
+            </div>
+
             <!-- Dynamický sprievodca podľa zvoleného tlačidla z úvodnej obrazovky -->
             <div id="persona-quick-banner" class="px-4 py-3 bg-gradient-to-r from-emerald-50 via-stone-50 to-amber-50 border-b border-stone-200 flex items-center justify-between shrink-0">
                 <div class="flex items-center space-x-2.5">
@@ -322,7 +378,7 @@
             </div>
 
             <!-- 4 Prehľadné záložky v bočnom paneli -->
-            <div class="p-2.5 bg-stone-100/90 border-b border-stone-200 shrink-0">
+            <div id="sidebar-tab-row" class="p-2.5 bg-stone-100/90 border-b border-stone-200 shrink-0">
                 <div class="grid grid-cols-4 gap-1 bg-stone-200/80 p-1 rounded-xl text-[11px] font-bold">
                     <button id="tab-btn-search" onclick="switchSidebarTab('search')" class="eco-tab-pill active-eco-tab py-2 rounded-lg transition-all flex items-center justify-center gap-1">
                         <span>🔍</span>
@@ -378,7 +434,7 @@
                 <div id="tab-panel-search" class="space-y-4">
                     
                     <!-- 1. Vyhľadávanie IČO / Obce / Názvu firmy -->
-                    <div id="search-box-ico" class="eco-card p-4 rounded-2xl space-y-3 border-l-4 border-l-emerald-600">
+                    <div id="search-box-ico" class="eco-card saas-technical-register p-4 rounded-2xl space-y-3 border-l-4 border-l-emerald-600">
                         <div class="flex items-center justify-between">
                             <label for="ico-input" class="block text-xs font-extrabold uppercase tracking-wider text-emerald-900">
                                 1. Subjekt podľa IČO, názvu alebo obce
@@ -405,7 +461,7 @@
                     </div>
 
                     <!-- 2. Kataster ÚGKK SR (Parcely C-KN a E-KN) -->
-                    <div id="search-box-cadastre" class="eco-card p-4 rounded-2xl space-y-3 border-l-4 border-l-sky-600">
+                    <div id="search-box-cadastre" class="eco-card saas-technical-register p-4 rounded-2xl space-y-3 border-l-4 border-l-sky-600">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-extrabold uppercase tracking-wider text-sky-900">2. Kataster ÚGKK SR (Parcely C-KN / E-KN)</span>
                             <span id="cadastre-spinner" class="hidden text-[11px] text-sky-600 font-mono font-bold animate-pulse">Dopytujem ÚGKK...</span>
@@ -461,7 +517,7 @@
                     </div>
 
                     <!-- 3. Zoznam evidovaných pôdnych blokov LPIS -->
-                    <div class="space-y-2">
+                    <div class="space-y-2 saas-technical-register">
                         <div class="flex items-center justify-between px-1">
                             <h3 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">3. Pozemky zakreslené v aplikácii</h3>
                             <span id="lpis-total-badge" class="text-[10px] font-mono font-bold text-emerald-900 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">0 záznamov</span>
@@ -512,7 +568,7 @@
                         <h3 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">Tematické vrstvy na mape</h3>
 
                         <!-- CEVZ Register včelstiev a 3km zóny -->
-                        <div class="eco-card p-3.5 rounded-2xl space-y-2.5 border-l-4 border-l-amber-500">
+                        <div class="eco-card saas-apiary-focus p-3.5 rounded-2xl space-y-2.5 border-l-4 border-l-amber-500">
                             <label class="flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center space-x-2.5">
                                     <input type="checkbox" id="layer-hives" checked onchange="toggleHivesLayer(this.checked)" class="w-4 h-4 accent-amber-600 rounded cursor-pointer">
@@ -524,7 +580,7 @@
                             </label>
                             <label class="flex items-center justify-between cursor-pointer pt-2 border-t border-stone-200">
                                 <div class="flex items-center space-x-2.5">
-                                    <input type="checkbox" id="layer-hive-radii" onchange="toggleHiveRadiiLayer(this.checked)" class="w-4 h-4 accent-amber-600 rounded cursor-pointer">
+                                    <input type="checkbox" id="layer-hive-radii" checked onchange="toggleHiveRadiiLayer(this.checked)" class="w-4 h-4 accent-amber-600 rounded cursor-pointer">
                                     <span class="text-[11px] font-bold text-amber-900">Zobraziť 3 km doletové kružnice včiel</span>
                                 </div>
                                 <span class="w-3.5 h-3.5 rounded-full border-2 border-dashed border-amber-500 bg-amber-200/50"></span>
@@ -604,7 +660,7 @@
                         <span class="text-[10px] font-mono bg-amber-700/40 px-2 py-0.5 rounded-md">3000 m</span>
                     </button>
 
-                    <button onclick="toggleAddHiveMode()" class="w-full eco-card hover:border-amber-500 text-amber-950 font-bold text-xs py-3 px-3.5 rounded-xl transition-all flex items-center justify-between">
+                    <button onclick="toggleAddHiveMode()" class="saas-apiary-focus w-full eco-card hover:border-amber-500 text-amber-950 font-bold text-xs py-3 px-3.5 rounded-xl transition-all flex items-center justify-between">
                         <span>🐝 Pridať nové včelstvo / úle kliknutím do mapy</span>
                         <span class="text-[10px] font-mono bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md">CEVZ / Hobby</span>
                     </button>
@@ -631,8 +687,8 @@
 
                     <hr class="border-stone-200">
 
-                    <h3 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">Úradné výstupy a export</h3>
-                    <div class="grid grid-cols-2 gap-2">
+                    <h3 class="saas-official-export text-[11px] font-extrabold uppercase tracking-wider text-slate-600">Úradné výstupy a export</h3>
+                    <div class="saas-official-export grid grid-cols-2 gap-2">
                         <button id="btn-spray-book" onclick="openSprayBook()" class="eco-card hover:border-rose-500 text-rose-900 font-bold text-xs py-2.5 px-2 rounded-xl transition-all">Úradná kniha postrekov</button>
                         <button id="btn-varroa-monitor" onclick="openVarroaMonitor()" class="eco-card hover:border-amber-500 text-amber-950 font-bold text-xs py-2.5 px-2 rounded-xl transition-all">Monitoring klieštika</button>
                         <button onclick="exportSprayBook('csv')" class="eco-card hover:border-emerald-500 text-emerald-900 font-bold text-xs py-2.5 px-2 rounded-xl transition-all">CSV (Excel)</button>
@@ -704,19 +760,6 @@
                     </div>
                 </div>
 
-                <!-- ======================================================== -->
-                <!-- VŽDY VIDITEĽNÝ INŠPEKTOR A VÝSLEDKOVÝ PANEL               -->
-                <!-- ======================================================== -->
-                <div id="analysis-result-panel" class="eco-card rounded-2xl p-4 space-y-2 border-2 border-emerald-500/40 bg-white">
-                    <div class="flex items-center justify-between border-b border-stone-200 pb-1.5">
-                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900">Detail výberu / Výsledok kontroly</span>
-                        <span id="analysis-badge" class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold">Pripravené</span>
-                    </div>
-                    <div id="analysis-content" class="text-xs text-slate-700 space-y-1.5 leading-relaxed">
-                        Kliknite na ľubovoľnú zelenú parcelu LPIS, žltú značku včelstva <b>🐝</b> alebo použite vyhľadávanie IČO a katastra.
-                    </div>
-                </div>
-
             </div>
 
             <!-- Spodná stavová lišta v bočnom paneli -->
@@ -730,6 +773,7 @@
                     <span id="hive-count-status" class="text-amber-700 font-bold">7 stanovíšť v mape</span>
                 </div>
             </div>
+            </div>
         </aside>
 
         <!-- Hlavná mapová časť -->
@@ -738,7 +782,7 @@
             <div id="map-mount" class="relative flex-1 w-full"></div>
 
             <!-- Plávajúci panel rýchlych nástrojov na pravej strane mapy -->
-            <div class="absolute top-20 right-3.5 z-20 flex flex-col space-y-2 bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-stone-300">
+            <div id="map-tool-rail" class="absolute top-20 right-3.5 z-20 flex flex-col space-y-2 bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-stone-300">
                 <button onclick="toggleSpraySimulation()" title="Otestovať postrek (3 km ochranné pásmo včiel)" class="w-10 h-10 rounded-xl bg-amber-50 hover:bg-amber-500 text-amber-800 hover:text-white border border-amber-300 flex items-center justify-center text-base transition shadow-sm">
                     ⚠️
                 </button>
@@ -1192,7 +1236,7 @@
             </div>
             
             <!-- Spodná geodetická lišta -->
-            <footer class="bg-white border-t border-stone-200 h-8 px-4 flex items-center justify-between text-[11px] text-slate-600 z-20 shrink-0 font-mono">
+            <footer id="geo-coord-pill" class="bg-white border-t border-stone-200 h-8 px-4 flex items-center justify-between text-[11px] text-slate-600 z-20 shrink-0 font-mono" role="button" tabindex="0" title="Kliknutím skopírujete súradnice">
                 <div class="flex items-center space-x-3 overflow-hidden">
                     <span id="footer-jtsk" class="text-sky-700 font-bold whitespace-nowrap">S-JTSK [EPSG:5514]: Y -571240.00 m, X -1281410.00 m</span>
                     <span class="hidden md:inline text-stone-300">|</span>
@@ -1231,6 +1275,40 @@
             <span>Účet</span>
         </button>
     </nav>
+
+    <div id="saas-layer-bar" role="toolbar" aria-label="Vrstvy mapy">
+        <button type="button" id="layerbar-ortho" class="is-on" onclick="setBaseMap('ortho')">
+            <span>Satelitná</span>
+            <small>Ortofoto</small>
+        </button>
+        <button type="button" id="layerbar-kataster" class="is-on" onclick="quickToggleKatasterButton()">
+            <span>Kataster</span>
+            <small>C-KN/E-KN</small>
+        </button>
+        <button type="button" id="layerbar-lpis" class="is-on" onclick="saasToggleLayer('lpis')">
+            <span>LPIS bloky</span>
+            <small>Pôda</small>
+        </button>
+        <button type="button" id="layerbar-hives" class="is-on" onclick="saasToggleLayer('hives')">
+            <span>Včelnice</span>
+            <small>3 km</small>
+        </button>
+        <button type="button" id="layerbar-profile" onclick="openProfileFromLayerBar()" aria-label="Profil" title="Profil">☺</button>
+    </div>
+    <button type="button" id="saas-geo-fab" class="saas-geo-fab" onclick="locateUserGPS()" aria-label="Moja poloha v teréne">⌖</button>
+
+    <div id="analysis-result-panel" class="eco-card rounded-2xl p-4 space-y-2 border-2 border-emerald-500/40 bg-white" aria-live="polite">
+        <div class="flex items-center justify-between border-b border-stone-200 pb-1.5">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900">Detail výberu / Výsledok kontroly</span>
+            <span class="flex items-center gap-2">
+                <span id="analysis-badge" class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold">Pripravené</span>
+                <button type="button" id="inspector-close" class="saas-inspector-close" aria-label="Zavrieť detail">✕</button>
+            </span>
+        </div>
+        <div id="analysis-content" class="text-xs text-slate-700 space-y-1.5 leading-relaxed">
+            Kliknite na ľubovoľnú zelenú parcelu LPIS, žltú značku včelstva <b>🐝</b> alebo použite vyhľadávanie IČO a katastra.
+        </div>
+    </div>
 
     <!-- Kontajner pre plávajúce notifikácie -->
     <div id="toast-container" class="fixed bottom-24 right-5 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full md:bottom-11"></div>

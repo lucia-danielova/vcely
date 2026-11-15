@@ -250,7 +250,7 @@ class ApplicationStateStore {
             interactionMode: 'NONE', // 'NONE' | 'IDENTIFY' | 'SPRAY' | 'ADD_HIVE' | 'MEASURE' | 'DRAW_PARCEL'
             isLpisLayerVisible: true,
             isHivesLayerVisible: true,
-            isHiveRadiiVisible: false,
+            isHiveRadiiVisible: true,
             isKatasterVisible: true,
             isDmrVisible: false,
             lpisOpacity: 0.35,

@@ -180,35 +180,77 @@ export class AgroMapEngine {
         }
     }
 
+    windCardinal(degrees) {
+        const value = Number(degrees);
+        if (!Number.isFinite(value)) return '';
+        const names = ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'];
+        return names[Math.round(value / 45) % 8];
+    }
+
     async updateLiveWeatherAtCenter() {
         if (!this.map) return;
         const c = this.map.getCenter();
         try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lng.toFixed(4)}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms&elevation=true`);
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lng.toFixed(4)}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`);
             const data = await res.json();
             if (data && data.current) {
                 const temp = data.current.temperature_2m;
                 const windMs = Number(data.current.wind_speed_10m).toFixed(1);
+                const wind = parseFloat(windMs);
+                const cardinal = this.windCardinal(data.current.wind_direction_10m);
+                const windLabel = cardinal ? `${windMs} m/s ${cardinal}` : `${windMs} m/s`;
                 const elevEl = document.getElementById('weather-elev');
                 if (elevEl && data.elevation != null) elevEl.innerText = `Výška: ${Math.round(data.elevation)} m`;
 
                 const tempEl = document.getElementById('weather-temp');
                 const windEl = document.getElementById('weather-wind');
                 const statusEl = document.getElementById('weather-spray-status');
+                const detailTemp = document.getElementById('weather-detail-temp');
+                const detailWind = document.getElementById('weather-detail-wind');
+                const iconEl = document.getElementById('weather-icon');
+                const pill = document.getElementById('weather-safety-pill');
 
                 if (tempEl) tempEl.innerText = `${temp.toFixed(1)}°C`;
-                if (windEl) windEl.innerText = `Vietor: ${windMs} m/s`;
+                if (detailTemp) detailTemp.innerText = `${temp.toFixed(1)} °C`;
+                if (windEl) windEl.innerText = `Vietor: ${windLabel}`;
+                if (detailWind) detailWind.innerText = windLabel;
                 if (statusEl) {
-                    if (parseFloat(windMs) <= 4.0 && temp <= 25.0) {
-                        statusEl.className = 'bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md';
-                        statusEl.innerText = 'Postrek Bezpečný';
-                    } else {
-                        statusEl.className = 'bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md';
-                        statusEl.innerText = 'Riziko úletu vetrom!';
+                    const beeActive = temp >= 12;
+                    let level = 'safe';
+                    let label = 'Postrek Bezpečný';
+                    let statusClass = 'saas-spray-badge is-safe';
+                    let icon = '🌤️';
+                    if (wind > 5 || (beeActive && wind > 4 && temp >= 20)) {
+                        level = 'banned';
+                        label = 'Postrek Zakázaný – silný vietor / aktivita včiel';
+                        statusClass = 'saas-spray-badge is-banned';
+                        icon = '🚫';
+                    } else if (wind > 3 || temp > 25 || temp < 5 || (beeActive && wind > 3)) {
+                        level = 'caution';
+                        label = 'Zvýšená opatrnosť';
+                        statusClass = 'saas-spray-badge is-caution';
+                        icon = '🟠';
                     }
+                    statusEl.className = statusClass;
+                    statusEl.dataset.level = level;
+                    statusEl.innerText = label;
+                    if (pill) pill.dataset.level = level;
+                    if (iconEl) iconEl.textContent = icon;
                 }
+                this._refreshMapCenterPlace(c);
             }
         } catch {}
+    }
+
+    _refreshMapCenterPlace(center) {
+        const key = `${center.lat.toFixed(2)}:${center.lng.toFixed(2)}`;
+        if (this._placeKey === key) return;
+        this._placeKey = key;
+        this.apiService.inspectGeodeticPoint(center.lat, center.lng).then((info) => {
+            if (this._placeKey !== key) return;
+            const placeEl = document.getElementById('weather-place');
+            if (placeEl) placeEl.textContent = info?.locality || info?.municipality || 'Stred mapy';
+        }).catch(() => {});
     }
 
     _renderGiftPlaces() {
@@ -374,8 +416,17 @@ export class AgroMapEngine {
                         ➕ Uložiť do LPIS
                     </button>
                 </div>
+                ${this.inspectorFactsHtml({
+                    parcelNumber: `KN-${parcelData.register} ${parcelData.parcelNumber}`,
+                    owner: parcelData.vlastnik,
+                    crop: parcelData.druhPozemku || parcelData.vyuzitie || '—',
+                    lat: parcelData.center[0],
+                    lng: parcelData.center[1],
+                    ring: parcelData.coords
+                })}
             `
         );
+        this.highlightCollidingRadii(parcelData.center[0], parcelData.center[1], parcelData.coords);
     }
 
     renderLpisParcels(highlightIco = null) {
@@ -460,8 +511,17 @@ export class AgroMapEngine {
                 <button onclick="window.runSprayCheckOnCoords(${parcel.center[0]}, ${parcel.center[1]}, '${parcel.id}')" class="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] py-2 px-3 rounded-xl transition">
                     ⚠️ Spustiť 3 km test kolízie s včelstvami
                 </button>
+                ${this.inspectorFactsHtml({
+                    parcelNumber: parcel.id,
+                    owner: parcel.ownerName,
+                    crop: parcel.crop,
+                    lat: parcel.center[0],
+                    lng: parcel.center[1],
+                    ring: parcel.coords
+                })}
             `
         );
+        this.highlightCollidingRadii(parcel.center[0], parcel.center[1], parcel.coords);
     }
 
     renderAllHives(collidedHiveIds = new Set()) {
@@ -516,16 +576,43 @@ export class AgroMapEngine {
             if (state.isHiveRadiiVisible) {
                 const radiusCircle = L.circle([hive.lat, hive.lng], {
                     radius: 3000,
-                    color: '#d97706',
-                    weight: 2,
-                    dashArray: '6, 6',
-                    fillColor: '#f59e0b',
-                    fillOpacity: 0.12,
-                    interactive: false
+                    color: isEndangered ? '#F97316' : '#F59E0B',
+                    weight: isEndangered ? 2.25 : 1.5,
+                    dashArray: isEndangered ? '5, 7' : '8, 7',
+                    fillColor: isEndangered ? '#EA580C' : '#F59E0B',
+                    fillOpacity: 0.22,
+                    interactive: false,
+                    className: isEndangered ? 'hive-radius-warning' : 'hive-radius-honey'
                 });
                 this.hiveRadiiLayer.addLayer(radiusCircle);
             }
+
+            marker.on('click', (event) => {
+                L.DomEvent.stopPropagation(event);
+                this.showApiaryInspector(hive);
+            });
         });
+    }
+
+    showApiaryInspector(hive) {
+        if (!hive) return;
+        const jtsk = AgroApiService.wgs84ToSJTSK(hive.lat, hive.lng);
+        this.updateSidebarAnalysisPanel(
+            'Včelnica',
+            'bg-amber-100 text-amber-950 border border-amber-300',
+            `
+                <div class="font-extrabold text-slate-900">${hive.name}</div>
+                <div class="text-[11px] text-slate-700">CEVZ: <b>${hive.cevz || 'Hobby'}</b> · ${hive.count} rodín</div>
+                <div class="text-[10px] font-mono text-sky-700 font-bold">S-JTSK: Y ${jtsk.y} m, X ${jtsk.x} m</div>
+                ${this.inspectorFactsHtml({
+                    parcelNumber: hive.cevz || 'včelnica',
+                    owner: hive.name,
+                    crop: 'včelie stanovište',
+                    lat: hive.lat,
+                    lng: hive.lng
+                })}
+            `
+        );
     }
 
     renderCompanyMarker(lat, lng, name, ico, address) {
@@ -937,9 +1024,81 @@ export class AgroMapEngine {
         showNotificationToast('🧹 Mapa bola vyčistená od simulácií a meraní.', 'info');
     }
 
+    _esc(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[character]);
+    }
+
+    _pointInRing(lat, lng, ring) {
+        if (!Array.isArray(ring) || ring.length < 3) return false;
+        let inside = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const yi = ring[i][0];
+            const xi = ring[i][1];
+            const yj = ring[j][0];
+            const xj = ring[j][1];
+            const intersect = ((yi > lat) !== (yj > lat))
+                && (lng < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-12) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    _hiveHitsSelection(hive, lat, lng, ring) {
+        if (AgroApiService.calculateDistanceMeters(lat, lng, hive.lat, hive.lng) <= 3000) return true;
+        if (Array.isArray(ring) && ring.some((point) => AgroApiService.calculateDistanceMeters(point[0], point[1], hive.lat, hive.lng) <= 3000)) return true;
+        return this._pointInRing(hive.lat, hive.lng, ring || []);
+    }
+
+    inspectorFactsHtml({ parcelNumber, owner, crop, lat, lng, ring = null }) {
+        const nearby = (store.getState().hives || [])
+            .map((hive) => ({
+                hive,
+                meters: AgroApiService.calculateDistanceMeters(lat, lng, hive.lat, hive.lng)
+            }))
+            .sort((a, b) => a.meters - b.meters)
+            .slice(0, 5);
+        const nearbyHtml = nearby.length
+            ? nearby.map((row) => {
+                const km = (row.meters / 1000).toFixed(2);
+                const hot = row.meters <= 3000 ? ' inspector-hot' : '';
+                return `<div class="inspector-near${hot}"><span>${this._esc(row.hive.name)}</span><b>${km} km</b></div>`;
+            }).join('')
+            : '<div>Žiadna včelnica v okolí</div>';
+        const protectedHit = (store.getState().hives || []).some((hive) => this._hiveHitsSelection(hive, lat, lng, ring));
+        const protection = protectedHit
+            ? '<b class="inspector-hot">v 3 km ochrannom pásme</b>'
+            : '<b class="inspector-safe">mimo 3 km pásma</b>';
+        return `
+            <div class="inspector-facts">
+                <div>Parcela KN-C/KN-E: <b>${this._esc(parcelNumber)}</b></div>
+                <div>Vlastník / užívateľ: <b>${this._esc(owner)}</b></div>
+                <div>Plodina: <b>${this._esc(crop)}</b></div>
+                <div>3 km ochrana: ${protection}</div>
+                <div>Včelnice v okolí</div>
+                ${nearbyHtml}
+            </div>
+        `;
+    }
+
+    highlightCollidingRadii(lat, lng, ring = null) {
+        const ids = new Set();
+        (store.getState().hives || []).forEach((hive) => {
+            if (this._hiveHitsSelection(hive, lat, lng, ring)) ids.add(hive.id);
+        });
+        this.renderAllHives(ids);
+        return ids;
+    }
+
     updateSidebarAnalysisPanel(badgeText, badgeClasses, htmlContent) {
         const badgeEl = document.getElementById('analysis-badge');
         const contentEl = document.getElementById('analysis-content');
+        const panel = document.getElementById('analysis-result-panel');
         if (badgeEl) {
             badgeEl.className = `text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono ${badgeClasses}`;
             badgeEl.innerText = badgeText;
@@ -947,6 +1106,7 @@ export class AgroMapEngine {
         if (contentEl) {
             contentEl.innerHTML = htmlContent;
         }
+        if (panel) panel.classList.add('is-visible');
     }
 
     _updateCartographicScale() {
