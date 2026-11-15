@@ -524,9 +524,28 @@ export class AgroMapEngine {
         this.highlightCollidingRadii(parcel.center[0], parcel.center[1], parcel.coords);
     }
 
+    _ensureHiveFillDefs() {
+        const svg = this.map?.getPanes()?.overlayPane?.querySelector('svg');
+        if (!svg || svg.querySelector('#hive-amber-fade')) return;
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = `
+            <radialGradient id="hive-amber-fade" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.42"/>
+                <stop offset="62%" stop-color="#F59E0B" stop-opacity="0.14"/>
+                <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="hive-hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                <rect width="8" height="8" fill="#e11d48" fill-opacity="0.16"/>
+                <line x1="0" y1="0" x2="0" y2="8" stroke="#e11d48" stroke-width="2" stroke-opacity="0.9"/>
+            </pattern>
+        `;
+        svg.insertBefore(defs, svg.firstChild);
+    }
+
     renderAllHives(collidedHiveIds = new Set()) {
         this.hivesLayer.clearLayers();
         this.hiveRadiiLayer.clearLayers();
+        this._ensureHiveFillDefs();
 
         const state = store.getState();
         const hives = state.hives || [];
@@ -592,6 +611,7 @@ export class AgroMapEngine {
                 this.showApiaryInspector(hive);
             });
         });
+        this._ensureHiveFillDefs();
     }
 
     showApiaryInspector(hive) {
@@ -1092,6 +1112,22 @@ export class AgroMapEngine {
             if (this._hiveHitsSelection(hive, lat, lng, ring)) ids.add(hive.id);
         });
         this.renderAllHives(ids);
+        if (this._collisionHatch) {
+            this.hiveRadiiLayer.removeLayer(this._collisionHatch);
+            this._collisionHatch = null;
+        }
+        if (ids.size && Array.isArray(ring) && ring.length > 2) {
+            this._collisionHatch = L.polygon(ring, {
+                color: '#e11d48',
+                weight: 2,
+                dashArray: '4 4',
+                fillOpacity: 0.2,
+                interactive: false,
+                className: 'lpis-collision-hatch'
+            });
+            this.hiveRadiiLayer.addLayer(this._collisionHatch);
+            this._ensureHiveFillDefs();
+        }
         return ids;
     }
 

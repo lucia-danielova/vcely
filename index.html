@@ -263,6 +263,8 @@
                     <div class="saas-weather-card-row"><span>Teplota</span><b id="weather-detail-temp">-- °C</b></div>
                     <div class="saas-weather-card-row"><span>Vietor</span><b id="weather-detail-wind">-- m/s</b></div>
                     <div class="saas-weather-card-row"><span>Nadmorská výška</span><b id="weather-elev">Výška: -- m</b></div>
+                    <div id="weather-forecast-24" class="eco-chart" role="img" aria-label="24-hodinová predpoveď vetra a teploty"></div>
+                    <p id="weather-forecast-caption" class="eco-widget-note">24 h okno pre stred mapy</p>
                 </div>
             </div>
 
@@ -1299,16 +1301,20 @@
             </div>
             
             <!-- Spodná geodetická lišta -->
-            <footer id="geo-coord-pill" class="bg-white border-t border-stone-200 h-8 px-4 flex items-center justify-between text-[11px] text-slate-600 z-20 shrink-0 font-mono" role="button" tabindex="0" title="Kliknutím skopírujete súradnice">
-                <div class="flex items-center space-x-3 overflow-hidden">
-                    <span id="footer-jtsk" class="text-sky-700 font-bold whitespace-nowrap">S-JTSK [EPSG:5514]: Y -571240.00 m, X -1281410.00 m</span>
-                    <span class="hidden md:inline text-stone-300">|</span>
-                    <span id="footer-latlng" class="hidden md:inline text-emerald-700 font-semibold whitespace-nowrap">ETRS89: 48° 21' 00.0" N, 17° 45' 00.0" E</span>
-                </div>
-                <div class="flex items-center space-x-3 shrink-0">
-                    <span id="footer-scale" class="text-amber-700 font-bold">Mierka 1 : 250 000</span>
-                    <span class="hidden sm:inline text-stone-300">|</span>
-                    <span id="footer-zoom" class="hidden sm:inline text-slate-700 font-bold">Zoom: 9</span>
+            <footer id="geo-coord-pill" class="bg-white border-t border-stone-200 h-8 px-4 flex items-center justify-between text-[11px] text-slate-600 z-20 shrink-0 font-mono" role="button" tabindex="0" title="Kliknutím rozbalíte súradnice" aria-expanded="false">
+                <span class="geo-pill-summary">Súradnice</span>
+                <div class="geo-pill-details">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <span id="footer-jtsk" class="text-sky-700 font-bold whitespace-nowrap">S-JTSK [EPSG:5514]: Y -571240.00 m, X -1281410.00 m</span>
+                        <span class="hidden md:inline text-stone-300">|</span>
+                        <span id="footer-latlng" class="hidden md:inline text-emerald-700 font-semibold whitespace-nowrap">ETRS89: 48° 21' 00.0" N, 17° 45' 00.0" E</span>
+                    </div>
+                    <div class="flex items-center space-x-3 shrink-0">
+                        <span id="footer-scale" class="text-amber-700 font-bold">Mierka 1 : 250 000</span>
+                        <span class="hidden sm:inline text-stone-300">|</span>
+                        <span id="footer-zoom" class="hidden sm:inline text-slate-700 font-bold">Zoom: 9</span>
+                    </div>
+                    <button type="button" id="geo-coord-copy">Kopírovať</button>
                 </div>
             </footer>
         </main>
@@ -1358,7 +1364,11 @@
         </button>
         <button type="button" id="layerbar-profile" onclick="openProfileFromLayerBar()" aria-label="Profil" title="Profil">☺</button>
     </div>
-    <button type="button" id="saas-geo-fab" class="saas-geo-fab" onclick="locateUserGPS()" aria-label="Moja poloha v teréne">⌖</button>
+    <div id="saas-fab-menu" class="saas-fab-menu" hidden>
+        <button type="button" id="saas-fab-hive">🐝 Pridať úľ na mape</button>
+        <button type="button" id="saas-fab-spray">⚠ Overiť postrek podľa GPS</button>
+    </div>
+    <button type="button" id="saas-geo-fab" class="saas-geo-fab" aria-label="Rýchla akcia v teréne" aria-expanded="false" aria-controls="saas-fab-menu">+</button>
 
     <div id="analysis-result-panel" class="eco-card rounded-2xl p-4 space-y-2 border-2 border-emerald-500/40 bg-white" aria-live="polite">
         <div class="flex items-center justify-between border-b border-stone-200 pb-1.5">
