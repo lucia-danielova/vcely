@@ -134,13 +134,8 @@ function showBanner(mode) {
     installBtn.hidden = hidePrimary;
     if (copy.button) installBtn.textContent = copy.button;
   }
-
-  if (showWindowsSteps && windowsHint) {
-    windowsHint.setAttribute('tabindex', '-1');
-    try {
-      windowsHint.focus({ preventScroll: false });
-    } catch {}
-  }
+  // Do not focus windowsHint here — unsolicited banners (e.g. 2.8s timeout)
+  // must not steal keyboard caret from login/register fields.
 }
 
 function hideBanner() {
@@ -174,9 +169,9 @@ async function promptInstall() {
       && windowsHint
       && !windowsHint.hidden;
     if (stepsAlreadyVisible) {
-      windowsHint.setAttribute('tabindex', '-1');
+      // Pulse + scroll only — never steal focus from form fields.
       try {
-        windowsHint.focus({ preventScroll: false });
+        windowsHint.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       } catch {}
       windowsHint.classList.add('pwa-install-hint-pulse');
       window.setTimeout(() => windowsHint.classList.remove('pwa-install-hint-pulse'), 900);
