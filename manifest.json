@@ -1,8 +1,8 @@
 {
 	"id": "./",
-	"name": "AGROGIS Slovensko",
-	"short_name": "AGROGIS",
-	"description": "Mapový geoportál pre poľnohospodárov a včelárov na Slovensku.",
+	"name": "Ak nebudú včely, nebude nič.",
+	"short_name": "Včely a pôda",
+	"description": "Spoločná ochrana včiel, pôdy a prírody na Slovensku.",
 	"lang": "sk",
 	"start_url": "./",
 	"scope": "./",

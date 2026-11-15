@@ -13,7 +13,9 @@ html, body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-#map {
+#map,
+#interactive-nature-map,
+#registration-mini-map {
     width: 100%;
     height: 100%;
     background: radial-gradient(circle at center, #eef2ec 0%, #dde4da 100%);
@@ -22,12 +24,12 @@ html, body {
 .landing-screen {
     --eco-ink: #15301f;
     --eco-deep: #184a32;
-    --eco-forest: #1f7a4d;
-    --eco-leaf: #4fa66a;
-    --eco-mint: #eaf3e2;
-    --eco-cream: #fbf6e6;
-    --eco-gold: #e0a512;
-    --eco-honey: #a8730a;
+    --eco-forest: #059669;
+    --eco-leaf: #10b981;
+    --eco-mint: #f8faf7;
+    --eco-cream: #f8faf7;
+    --eco-gold: #f59e0b;
+    --eco-honey: #d97706;
 
     position: fixed;
     background-color: var(--eco-mint);
@@ -139,6 +141,59 @@ html, body {
 }
 
 /* ---- MAPA: ústredný, živý a presný GIS prvok úvodnej obrazovky ---- */
+.nature-stage {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    width: 100%;
+    max-width: 72rem;
+    margin: 0 auto;
+    align-items: stretch;
+}
+
+.nature-side {
+    border-radius: 1.6rem;
+    padding: 1.15rem 1.1rem;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 18px 40px -24px rgba(15, 42, 28, 0.35);
+}
+
+.nature-side-kicker {
+    margin: 0 0 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #3f6b52;
+}
+
+.nature-side h2 {
+    margin: 0 0 0.45rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--eco-deep);
+}
+
+.nature-side p {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: #35503f;
+}
+
+.nature-side-bee .nature-side-kicker {
+    color: #92620a;
+}
+
+@media (min-width: 1024px) {
+    .nature-stage {
+        grid-template-columns: 220px minmax(0, 1fr) 220px;
+    }
+}
+
 .landing-map-section {
     position: relative;
     margin: 0 auto;
@@ -322,6 +377,9 @@ html, body {
     background: rgba(255, 255, 255, 0.86);
     border: 1px solid rgba(31, 122, 77, 0.14);
     text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
@@ -370,10 +428,11 @@ html, body {
 }
 
 /* ---- Záverečná výzva na akciu: Prihlásenie / Registrácia ---- */
-.landing-cta-band {
+.landing-cta-band,
+.cta-action-banner {
     position: relative;
     margin: 2.25rem auto 0;
-    max-width: 40rem;
+    max-width: 48rem;
     padding: 1.75rem 1.5rem;
     border-radius: 1.75rem;
     text-align: center;
