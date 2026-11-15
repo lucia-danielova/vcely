@@ -1064,6 +1064,39 @@ body.android-app-shell {
     line-height: 1.35;
 }
 
+.android-install-copy #android-install-windows-hint {
+    display: block;
+    margin-top: 0.2rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid rgba(4, 120, 87, 0.12);
+    border-radius: 0.4rem;
+}
+
+.android-install-copy #android-install-windows-hint:focus {
+    outline: 2px solid #047857;
+    outline-offset: 3px;
+}
+
+.android-install-copy #android-install-windows-hint.pwa-install-hint-pulse {
+    animation: pwa-hint-pulse 0.85s ease;
+}
+
+@keyframes pwa-hint-pulse {
+    0% { background: rgba(4, 120, 87, 0.16); }
+    100% { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .android-install-copy #android-install-windows-hint.pwa-install-hint-pulse {
+        animation: none;
+        background: rgba(4, 120, 87, 0.1);
+    }
+}
+
+.android-install-banner[data-platform="windows"] {
+    max-width: min(520px, calc(100vw - 24px));
+}
+
 .android-install-actions {
     display: flex;
     flex-direction: column;

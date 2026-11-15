@@ -1,5 +1,5 @@
 /**
- * Android / desktop PWA install + update UX.
+ * Cross-platform PWA install + update UX (Android, Windows, iOS).
  */
 const DISMISS_KEY = 'vcely_install_dismissed_v1';
 const DISMISS_DAYS = 14;
@@ -10,6 +10,7 @@ let installUiBound = false;
 export function isStandaloneDisplay() {
   return window.matchMedia('(display-mode: standalone)').matches
     || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.matchMedia('(display-mode: window-controls-overlay)').matches
     || window.navigator.standalone === true
     || document.referrer.includes('android-app://');
 }
@@ -20,6 +21,30 @@ export function isIosSafari() {
   const webkit = /WebKit/.test(ua);
   const chrome = /CriOS|FxiOS|EdgiOS/.test(ua);
   return iOS && webkit && !chrome;
+}
+
+export function isWindowsDesktop() {
+  const ua = window.navigator.userAgent || '';
+  const platform = window.navigator.userAgentData?.platform
+    || window.navigator.platform
+    || '';
+  if (/Windows/i.test(platform) || /Win32|Win64|Windows/i.test(ua)) {
+    // Exclude Windows Phone / mobile UA leftovers
+    return !/Windows Phone|Mobile/i.test(ua);
+  }
+  return false;
+}
+
+export function isAndroidDevice() {
+  return /Android/i.test(window.navigator.userAgent || '');
+}
+
+/** @returns {'windows'|'android'|'ios'|'desktop'} */
+export function getInstallPlatform() {
+  if (isIosSafari()) return 'ios';
+  if (isAndroidDevice()) return 'android';
+  if (isWindowsDesktop()) return 'windows';
+  return 'desktop';
 }
 
 function wasRecentlyDismissed() {
@@ -43,28 +68,83 @@ function markDismissed() {
 function getBannerEls() {
   return {
     banner: document.getElementById('android-install-banner'),
+    title: document.getElementById('pwa-install-title'),
     installBtn: document.getElementById('android-install-btn'),
     dismissBtn: document.getElementById('android-install-dismiss'),
     iosHint: document.getElementById('android-install-ios-hint'),
+    windowsHint: document.getElementById('android-install-windows-hint'),
     status: document.getElementById('android-install-status')
   };
 }
 
+function copyForMode(mode, platform) {
+  if (mode === 'ios') {
+    return {
+      title: 'Pridať na iPhone',
+      status: 'Otvorte Zdieľať a zvoľte Pridať na plochu',
+      button: 'Ako na iPhone'
+    };
+  }
+  if (platform === 'windows') {
+    return {
+      title: mode === 'ready' ? 'Nainštalovať na Windows' : 'Inštalácia na Windows',
+      status: mode === 'ready'
+        ? 'Samostatné okno bez Edge/Chrome — na pracovnú plochu aj do ponuky Štart'
+        : 'V Edge alebo Chrome: menu ⋯ → Aplikácie → Inštalovať túto lokalitu ako aplikáciu',
+      // When manual steps are already on screen, hide the primary CTA (no-op "Zobraziť postup").
+      button: mode === 'ready' ? 'Inštalovať' : ''
+    };
+  }
+  if (platform === 'android') {
+    return {
+      title: 'Nainštalovať na Android',
+      status: 'Samostatná aplikácia bez prehliadača, s offline shellom',
+      button: 'Inštalovať'
+    };
+  }
+  return {
+    title: 'Nainštalovať aplikáciu',
+    status: 'Funguje na Windows (Edge/Chrome) aj Android — offline shell, bez karty prehliadača',
+    button: 'Inštalovať'
+  };
+}
+
 function showBanner(mode) {
-  const { banner, iosHint, status, installBtn } = getBannerEls();
+  const { banner, title, iosHint, windowsHint, status, installBtn } = getBannerEls();
   if (!banner || isStandaloneDisplay() || wasRecentlyDismissed()) return;
+
+  const platform = getInstallPlatform();
+  const copy = copyForMode(mode, platform);
 
   banner.hidden = false;
   banner.dataset.mode = mode;
+  banner.dataset.platform = platform;
   document.body.classList.add('has-install-banner');
 
+  if (title) title.textContent = copy.title;
+  if (status) status.textContent = copy.status;
+
+  const showWindowsSteps = platform === 'windows' && mode !== 'ready';
   if (iosHint) iosHint.hidden = mode !== 'ios';
-  if (installBtn) installBtn.hidden = mode === 'ios';
-  if (status) {
-    status.textContent = mode === 'ios'
-      ? 'Na iPhone: Zdieľať → Pridať na plochu'
-      : 'Nainštalujte si aplikáciu na Android — funguje offline a bez prehliadača';
+  if (windowsHint) windowsHint.hidden = !showWindowsSteps;
+
+  if (installBtn) {
+    // iOS: no native prompt. Windows manual: steps already visible — hide redundant CTA.
+    const hidePrimary = mode === 'ios' || showWindowsSteps || !copy.button;
+    installBtn.hidden = hidePrimary;
+    if (copy.button) installBtn.textContent = copy.button;
   }
+}
+
+/** Move focus to the Windows steps only after an explicit install request. */
+function focusWindowsSteps(windowsHint) {
+  if (!windowsHint || windowsHint.hidden) return;
+  windowsHint.setAttribute('tabindex', '-1');
+  try {
+    windowsHint.focus({ preventScroll: false });
+  } catch {}
+  windowsHint.classList.add('pwa-install-hint-pulse');
+  window.setTimeout(() => windowsHint.classList.remove('pwa-install-hint-pulse'), 900);
 }
 
 function hideBanner() {
@@ -74,18 +154,57 @@ function hideBanner() {
 }
 
 async function promptInstall() {
-  if (!deferredPrompt) {
-    showBanner(isIosSafari() ? 'ios' : 'manual');
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (choice?.outcome === 'accepted') {
+      hideBanner();
+      return true;
+    }
     return false;
   }
-  deferredPrompt.prompt();
-  const choice = await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  if (choice?.outcome === 'accepted') {
-    hideBanner();
-    return true;
+
+  const platform = getInstallPlatform();
+  if (platform === 'ios') {
+    showBanner('ios');
+    return false;
   }
+  if (platform === 'windows') {
+    const { banner, windowsHint } = getBannerEls();
+    const stepsAlreadyVisible = banner
+      && !banner.hidden
+      && banner.dataset.mode === 'windows-manual'
+      && windowsHint
+      && !windowsHint.hidden;
+    if (!stepsAlreadyVisible) showBanner('windows-manual');
+    focusWindowsSteps(getBannerEls().windowsHint);
+    return false;
+  }
+  showBanner('manual');
   return false;
+}
+
+function syncInstallCtaLabels() {
+  const platform = getInstallPlatform();
+  document.querySelectorAll('[data-pwa-install]').forEach((el) => {
+    if (el.dataset.pwaLabelLocked === 'true') return;
+    if (el.classList.contains('landing-install-button')) {
+      el.title = platform === 'windows'
+        ? 'Nainštalovať na Windows'
+        : platform === 'android'
+          ? 'Nainštalovať na Android'
+          : 'Nainštalovať aplikáciu';
+      return;
+    }
+    if (el.classList.contains('landing-cta-btn-install')) {
+      el.textContent = platform === 'windows'
+        ? 'Nainštalovať na Windows'
+        : platform === 'android'
+          ? 'Nainštalovať na Android'
+          : 'Nainštalovať app';
+    }
+  });
 }
 
 export function bindPwaInstallUi() {
@@ -93,6 +212,7 @@ export function bindPwaInstallUi() {
   installUiBound = true;
 
   const { installBtn, dismissBtn } = getBannerEls();
+  syncInstallCtaLabels();
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
@@ -119,7 +239,6 @@ export function bindPwaInstallUi() {
     });
   }
 
-  // Header / landing CTA hooks
   document.querySelectorAll('[data-pwa-install]').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
@@ -133,9 +252,16 @@ export function bindPwaInstallUi() {
     return;
   }
 
-  if (isIosSafari() && !wasRecentlyDismissed()) {
-    // Soft delay so first paint stays clean
-    setTimeout(() => showBanner('ios'), 2400);
+  // Soft prompts when the browser has not yet fired beforeinstallprompt
+  if (!wasRecentlyDismissed()) {
+    const platform = getInstallPlatform();
+    if (platform === 'ios') {
+      setTimeout(() => showBanner('ios'), 2400);
+    } else if (platform === 'windows') {
+      setTimeout(() => {
+        if (!deferredPrompt) showBanner('windows-manual');
+      }, 2800);
+    }
   }
 }
 
