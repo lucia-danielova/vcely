@@ -120,11 +120,34 @@ function mergeEntities(parts) {
   }
 
   merged.sources = [...new Set(sources)];
-  merged.source = merged.sources.join(' + ') || 'Verejné registre SR';
+  // Compact label fits registered_entities.source VARCHAR limit; full names stay in `sources`.
+  merged.source = compactSourceLabel(merged.sources);
   if (!merged.address && (merged.street || merged.city)) {
     merged.address = [merged.street, [merged.postalCode, merged.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   }
   return merged.name || merged.ico ? merged : null;
+}
+
+const SOURCE_SHORT_LABELS = [
+  [/Apino/i, 'Apino'],
+  [/statistics\.sk|ŠÚ SR RPO|^RPO\b/i, 'RPO'],
+  [/RegisterUZ|RÚZ/i, 'RÚZ'],
+  [/ORSR/i, 'ORSR'],
+  [/Slovensko\.Digital|datahub/i, 'Datahub'],
+  [/Lokálny|local/i, 'Lokálny']
+];
+
+function compactSourceLabel(sources, maxLen = 120) {
+  const list = Array.isArray(sources) ? sources.filter(Boolean) : [];
+  if (!list.length) return 'Verejné registre SR';
+  const shorts = [];
+  for (const source of list) {
+    const hit = SOURCE_SHORT_LABELS.find(([pattern]) => pattern.test(String(source)));
+    const label = hit ? hit[1] : String(source).slice(0, 24);
+    if (!shorts.includes(label)) shorts.push(label);
+  }
+  const joined = shorts.join('+') || 'Verejné registre SR';
+  return joined.length <= maxLen ? joined : `${joined.slice(0, maxLen - 1)}…`;
 }
 
 async function fetchJson(url, { signal, timeoutMs = 5000, headers = {} } = {}) {
@@ -431,6 +454,7 @@ module.exports = {
   cleanIco,
   padIco,
   mergeEntities,
+  compactSourceLabel,
   formatRpoAddress,
   lookupEntityByIco,
   searchEntitiesByQuery,

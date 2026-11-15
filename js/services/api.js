@@ -131,12 +131,17 @@ export class AgroApiService {
 
         const normalized = value.toLowerCase();
         const digits = value.replace(/\D/g, '');
+        const icoQuery = /^\d{6,10}$/.test(digits);
         return (store.getState().entities || [])
             .filter((entity) => {
-                const ico = String(entity.ico || '');
+                const ico = String(entity.ico || '').replace(/\D/g, '');
                 const name = String(entity.name || '').toLowerCase();
                 const city = String(entity.city || '').toLowerCase();
-                return ico.includes(digits) || name.includes(normalized) || city.includes(normalized);
+                if (icoQuery) {
+                    return ico === digits || ico === digits.padStart(8, '0') || ico.includes(digits);
+                }
+                // Name queries must match name/city — never treat empty digits as matching every IČO.
+                return name.includes(normalized) || city.includes(normalized);
             })
             .slice(0, 8);
     }

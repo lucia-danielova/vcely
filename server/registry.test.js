@@ -54,10 +54,28 @@ test('mergeEntities prefers richer address and unions sources', () => {
   assert.equal(merged.fileReference, 'Sro 97909/B');
   assert.match(merged.address, /Kadnárova/);
   assert.ok(merged.sources.length >= 3);
-  assert.match(merged.source, /statistics\.sk|RPO/i);
-  assert.match(merged.source, /RegisterUZ/);
+  assert.ok(merged.source.length <= 120, `source too long for DB: ${merged.source}`);
+  assert.match(merged.source, /RPO/);
+  assert.match(merged.source, /RÚZ|RUZ/i);
   assert.match(merged.source, /ORSR/);
-  assert.match(merged.source, /Slovensko\.Digital/);
+  assert.match(merged.source, /Datahub|Apino/);
+  assert.ok(merged.sources.some((s) => /RegisterUZ/i.test(s)));
+  assert.ok(merged.sources.some((s) => /Slovensko\.Digital|ORSR|statistics\.sk/i.test(s)));
+});
+
+test('compact source label stays within VARCHAR(120)', () => {
+  const { compactSourceLabel } = require('./registry');
+  const label = compactSourceLabel([
+    'ŠÚ SR RPO (api.statistics.sk)',
+    'RegisterUZ.sk (MF SR)',
+    'ORSR (sluzby.orsr.sk)',
+    'Slovensko.Digital Datahub (datahub.ekosystem.slovensko.digital)',
+    'Apino.sk RPO (api.apino.sk)'
+  ]);
+  assert.ok(label.length <= 120);
+  assert.match(label, /Apino/);
+  assert.match(label, /RPO/);
+  assert.match(label, /RÚZ|ORSR|Datahub/);
 });
 
 test('live IČO lookup returns merged public registry data for a known company', async () => {

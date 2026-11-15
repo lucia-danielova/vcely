@@ -294,7 +294,16 @@ app.post('/api/registry/verify-entity', async (req, res, next) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          ON CONFLICT (ico) DO UPDATE SET name=EXCLUDED.name, type=EXCLUDED.type, address=EXCLUDED.address,
          city=EXCLUDED.city, lat=COALESCE(EXCLUDED.lat, registered_entities.lat), lng=COALESCE(EXCLUDED.lng, registered_entities.lng), source=EXCLUDED.source, updated_at=NOW()`,
-        [padIco(entity.ico), entity.name, entity.type || null, entity.address || null, entity.city || null, entity.lat || null, entity.lng || null, entity.source]
+        [
+          padIco(entity.ico),
+          entity.name,
+          entity.type || null,
+          entity.address || null,
+          entity.city || null,
+          entity.lat || null,
+          entity.lng || null,
+          String(entity.source || 'Verejné registre SR').slice(0, 120)
+        ]
       );
     }
     res.json({ success: true, entity });

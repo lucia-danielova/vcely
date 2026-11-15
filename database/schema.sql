@@ -62,6 +62,9 @@ CREATE TABLE IF NOT EXISTS public.registered_entities (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Keep source at VARCHAR(120): multi-register lookups store a compact label (e.g. Apino+RPO+RÚZ+ORSR).
+-- Full register names remain on the API entity.sources array, not in this column.
+
 CREATE INDEX IF NOT EXISTS registered_entities_name_idx ON public.registered_entities USING GIN (to_tsvector('simple', name));
 CREATE INDEX IF NOT EXISTS registered_entities_city_idx ON public.registered_entities (city);
 

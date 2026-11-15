@@ -1071,8 +1071,10 @@ function showFarmerShield(entity) {
   const shield = $('farmer-verified-shield');
   if (!shield || !entity) return;
   const seat = entity.address || entity.city || 'Sídlo';
-  const source = entity.source || '';
-  const live = /RPO|RegisterUZ|RÚZ|ORSR|statistics\.sk|Slovensko\.Digital|datahub|sluzby\.orsr|Apino/i.test(source);
+  const source = Array.isArray(entity.sources) && entity.sources.length
+    ? entity.sources.join(' + ')
+    : (entity.source || '');
+  const live = /RPO|RegisterUZ|RÚZ|ORSR|statistics\.sk|Slovensko\.Digital|datahub|sluzby\.orsr|Apino|Datahub/i.test(source);
   if (Array.isArray(entity.people) && entity.people.length) {
     const peopleLine = entity.people
       .slice(0, 3)
