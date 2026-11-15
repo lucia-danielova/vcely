@@ -11,6 +11,7 @@ import {
   setBottomNavActive
 } from './components/android-shell.js';
 import { bindSaasShell } from './components/saas-shell.js';
+import { bindEcosystemCenter } from './components/ecosystem-center.js';
 
 const personaConfig = {
   BEE_PRO: {
@@ -459,7 +460,7 @@ function populateProfileForm(user = getCurrentUserSafe()) {
 function openUserDashboardModal() {
   const modal = $('user-dashboard-modal');
   if (!modal) return;
-  switchDashboardSection('profile');
+  switchDashboardSection('overview');
   populateProfileForm();
   modal.classList.remove('hidden');
   refreshDashboardStats();
@@ -1588,6 +1589,14 @@ function openHiveModal(lat, lng) {
   if (coords) coords.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
+function retargetHiveCoordinates(lat, lng) {
+  pendingHiveCoordinates = { lat: Number(lat), lng: Number(lng) };
+  const coords = $('modal-hive-coords');
+  if (coords) coords.value = `${pendingHiveCoordinates.lat.toFixed(5)}, ${pendingHiveCoordinates.lng.toFixed(5)}`;
+  const modal = $('hive-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
 function closeHiveModal() {
   const modal = $('hive-modal');
   if (modal) modal.classList.add('hidden');
@@ -1612,7 +1621,9 @@ function confirmAddHive() {
     email: emailInput.value.trim() || 'n/a',
     cevz: cevzInput?.value?.trim() || 'CEVZ-SK-2026',
     lat: pendingHiveCoordinates.lat,
-    lng: pendingHiveCoordinates.lng
+    lng: pendingHiveCoordinates.lng,
+    siteType: $('hive-site-type')?.value || 'permanent',
+    nectarTags: $('hive-nectar-tags')?.value || ''
   };
 
   const state = store.getState();
@@ -1777,7 +1788,9 @@ function saveSprayBookEntry(event) {
     product: $('spray-product')?.value?.trim() || '',
     windMs: Number($('spray-wind')?.value || 0),
     tempC: Number($('spray-temp')?.value || 0),
-    when: $('spray-when')?.value || ''
+    when: $('spray-when')?.value || '',
+    toxicity: $('spray-toxicity-value')?.value || 'safe',
+    sprayWindow: $('spray-window-value')?.value || 'evening'
   });
   localStorage.setItem(SPRAY_BOOK_KEY, JSON.stringify(rows));
   renderSprayBookList();
@@ -1984,6 +1997,7 @@ function initUi() {
   if (authModal) authModal.classList.add('hidden');
   if (userDashboardModal) userDashboardModal.classList.add('hidden');
   bindSaasShell();
+  bindEcosystemCenter();
 
   const closeButtons = document.querySelectorAll('[data-close-modal]');
   closeButtons.forEach((button) => {
@@ -2095,6 +2109,7 @@ window.focusLpisParcelOnMap = focusLpisParcelOnMap;
 window.focusHiveOnMap = focusHiveOnMap;
 window.focusUserAssetsOnMap = focusUserAssetsOnMap;
 window.openHiveModal = openHiveModal;
+window.retargetHiveCoordinates = retargetHiveCoordinates;
 window.closeHiveModal = closeHiveModal;
 window.confirmAddHive = confirmAddHive;
 window.printInspectionReport = printInspectionReport;
