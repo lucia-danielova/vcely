@@ -6,6 +6,7 @@
 import { store } from '../core/state-store.js';
 import { AgroApiService } from '../services/api.js';
 import { OfflineSyncService } from '../services/offline-sync.js';
+import { fetchJson } from '../services/backend-api.js';
 import { showNotificationToast } from './event-bus.js';
 
 export class AgroMapEngine {
@@ -191,8 +192,7 @@ export class AgroMapEngine {
         if (!this.map) return;
         const c = this.map.getCenter();
         try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lng.toFixed(4)}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`);
-            const data = await res.json();
+            const data = await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lng.toFixed(4)}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`, {}, 8000);
             if (data && data.current) {
                 const temp = data.current.temperature_2m;
                 const windMs = Number(data.current.wind_speed_10m).toFixed(1);
@@ -283,9 +283,7 @@ export class AgroMapEngine {
             + `&mapExtent=${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
             + `&imageDisplay=${Math.round(size.x)},${Math.round(size.y)},96&returnGeometry=true&f=json`;
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
+            const data = await fetchJson(url, {}, 10000);
             const feature = data.results && data.results[0];
             const ring = feature && feature.geometry && feature.geometry.rings && feature.geometry.rings[0];
             if (!feature || !ring || !ring.length) {
@@ -1129,6 +1127,60 @@ export class AgroMapEngine {
             this._ensureHiveFillDefs();
         }
         return ids;
+    }
+
+    runEcosystemRadarScan(lat, lng, label = 'Ekosystémový sken') {
+        if (!this.map || !window.L) {
+            return { hiveCount: 0, parcelCount: 0, areaHa: 0, colonies: 0 };
+        }
+        const latNum = Number(lat);
+        const lngNum = Number(lng);
+        this.map.setView([latNum, lngNum], 13, { animate: true });
+        this.checkSprayCollision(latNum, lngNum, label);
+
+        const parcels = store.getState().lpisParcels || [];
+        let parcelCount = 0;
+        let areaHa = 0;
+        parcels.forEach((parcel) => {
+            const center = Array.isArray(parcel.center) ? parcel.center : null;
+            if (!center) return;
+            const meters = AgroApiService.calculateDistanceMeters(latNum, lngNum, Number(center[0]), Number(center[1]));
+            if (!Number.isFinite(meters) || meters > 3000) return;
+            parcelCount += 1;
+            areaHa += Number(parcel.areaHa || 0);
+            if (Array.isArray(parcel.coords) && parcel.coords.length > 2) {
+                const poly = L.polygon(parcel.coords, {
+                    color: '#FDE68A',
+                    weight: 3,
+                    fillColor: '#F59E0B',
+                    fillOpacity: 0.28,
+                    className: 'eco-radar-parcel',
+                    interactive: false
+                });
+                this.sprayLayer.addLayer(poly);
+            }
+        });
+
+        const nearbyHives = (store.getState().hives || []).filter((hive) => {
+            const meters = AgroApiService.calculateDistanceMeters(latNum, lngNum, Number(hive.lat), Number(hive.lng));
+            return Number.isFinite(meters) && meters <= 3000;
+        });
+        this.renderAllHives(new Set(nearbyHives.map((hive) => hive.id)));
+        this.updateSidebarAnalysisPanel(
+            '3 km radar',
+            'bg-amber-100 text-amber-950 border border-amber-300',
+            `
+                <div class="font-extrabold text-slate-900">${this._esc(label)}</div>
+                <div class="text-[11px] text-slate-700">LPIS bloky v 3 km: <b>${parcelCount}</b> (${areaHa.toFixed(1)} ha)</div>
+                <div class="text-[11px] text-slate-700">Včelnice v 3 km: <b>${nearbyHives.length}</b> (${nearbyHives.reduce((sum, hive) => sum + Number(hive.count || 0), 0)} rodín)</div>
+            `
+        );
+        return {
+            hiveCount: nearbyHives.length,
+            parcelCount,
+            areaHa,
+            colonies: nearbyHives.reduce((sum, hive) => sum + Number(hive.count || 0), 0)
+        };
     }
 
     updateSidebarAnalysisPanel(badgeText, badgeClasses, htmlContent) {

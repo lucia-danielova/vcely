@@ -197,6 +197,31 @@ test('API base is same-origin off GitHub Pages and the Render API on Pages', asy
   assert.equal(urls[0], 'https://agrogis.example.sk/api/registry/lpis');
 });
 
+test('GET retries once after a 503 then succeeds', async () => {
+  const { backendApi } = await backendApiModule;
+  const calls = [];
+  const responses = [
+    new Response(JSON.stringify({ error: 'SERVICE_UNAVAILABLE' }), {
+      status: 503,
+      headers: { 'content-type': 'application/json' }
+    }),
+    new Response(JSON.stringify({ parcels: [{ externalRegisterId: 'LPIS-1' }] }), {
+      headers: { 'content-type': 'application/json' }
+    })
+  ];
+
+  await withGlobals({
+    fetch: async (url) => {
+      calls.push(url);
+      return responses.shift();
+    }
+  }, async () => {
+    assert.deepEqual(await backendApi.getLpisParcels(), [{ externalRegisterId: 'LPIS-1' }]);
+  });
+
+  assert.equal(calls.length, 2);
+});
+
 test('malformed API JSON fails explicitly with the response status', async () => {
   const { backendApi } = await backendApiModule;
   await withGlobals({

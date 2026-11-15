@@ -4,22 +4,26 @@ const TOKEN_KEY = 'agrogis_api_token_v1';
 // (GitHub Pages) there is no backend, so cross-origin calls go to the
 // deployed Render API; override with ?api=<url> or localStorage agrogis_api_base.
 const RENDER_API_BASE = 'https://agrogis-app.onrender.com/api';
+const REQUEST_TIMEOUT_MS = 12000;
+const RETRY_DELAY_MS = 400;
 
 function getApiBase() {
   const location = globalThis.location;
   if (location && /^https?:$/.test(location.protocol)) {
     const override = new URLSearchParams(location.search).get('api');
     if (override) return `${override.replace(/\/+$/, '')}/api`;
-    const sameOrigin = `${location.origin}/api`;
-    if (!location.hostname.endsWith('github.io')) return sameOrigin;
     const storage = getStorage();
     const stored = storage ? storage.getItem('agrogis_api_base') : null;
-    return stored ? `${stored.replace(/\/+$/, '')}/api` : RENDER_API_BASE;
+    const remoteBase = stored ? `${stored.replace(/\/+$/, '')}/api` : RENDER_API_BASE;
+    const sameOrigin = `${location.origin}/api`;
+    const localHost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+    const search = String(location.search || '');
+    if (location.hostname.endsWith('github.io')) return remoteBase;
+    if (localHost && location.port !== '8000' && !search.includes('localapi=1')) return remoteBase;
+    return sameOrigin;
   }
   return RENDER_API_BASE;
 }
-
-const API_BASE = getApiBase();
 
 function getStorage() {
   try {
@@ -44,7 +48,51 @@ function clearToken() {
   if (storage) storage.removeItem(TOKEN_KEY);
 }
 
-async function request(path, options = {}) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetry(method, path, error) {
+  const status = Number(error?.status);
+  const verb = String(method || 'GET').toUpperCase();
+  const retryable = status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+  if (!retryable) return false;
+  if (verb === 'GET') return true;
+  return verb === 'POST' && path === '/auth/login';
+}
+
+export async function fetchJson(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const parent = options.signal;
+  const onParentAbort = () => controller.abort();
+  if (parent) {
+    if (parent.aborted) controller.abort();
+    else parent.addEventListener('abort', onParentAbort, { once: true });
+  }
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return await response.json();
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      error.status = 408;
+      error.code = 'TIMEOUT';
+    } else if (!error.status) {
+      error.status = 0;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    parent?.removeEventListener('abort', onParentAbort);
+  }
+}
+
+async function request(path, options = {}, attempt = 0) {
   const headers = new Headers(options.headers || {});
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   if (options.body !== undefined && options.body !== null && !isFormData && !headers.has('Content-Type')) {
@@ -54,13 +102,29 @@ async function request(path, options = {}) {
   const token = readToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
+  const { timeoutMs, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs || REQUEST_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    response = await fetch(`${getApiBase()}${path}`, { ...fetchOptions, headers, signal: controller.signal });
   } catch (error) {
-    error.status = 0;
+    clearTimeout(timer);
+    if (error.name === 'AbortError') {
+      error.status = 408;
+      error.code = 'TIMEOUT';
+      error.message = 'Cloud API neodpovedala včas';
+    } else {
+      error.status = 0;
+      error.code = error.code || 'NETWORK_ERROR';
+    }
+    if (attempt === 0 && shouldRetry(options.method, path, error)) {
+      await sleep(RETRY_DELAY_MS);
+      return request(path, options, 1);
+    }
     throw error;
   }
+  clearTimeout(timer);
 
   let payload = {};
   if (response.status !== 204) {
@@ -81,6 +145,10 @@ async function request(path, options = {}) {
     const error = new Error(payload.details || payload.error || `HTTP ${response.status}`);
     error.status = response.status;
     error.code = payload.error;
+    if (attempt === 0 && shouldRetry(options.method, path, error)) {
+      await sleep(RETRY_DELAY_MS);
+      return request(path, options, 1);
+    }
     throw error;
   }
   return payload;
@@ -92,6 +160,15 @@ function persistSession(payload) {
 }
 
 export const backendApi = {
+  TOKEN_KEY,
+  getApiBase,
+  hasToken() {
+    return Boolean(readToken());
+  },
+  async health() {
+    const result = await request('/health', { method: 'GET', timeoutMs: 8000 });
+    return result;
+  },
   async register(user) {
     return persistSession(await request('/auth/register', { method: 'POST', body: JSON.stringify(user) }));
   },
@@ -166,6 +243,7 @@ export const backendApi = {
     return result.parcels || [];
   },
   isUnavailable(error) {
-    return !error.status || error.status >= 500;
+    const status = Number(error?.status);
+    return !status || status === 408 || status === 429 || status >= 500;
   }
 };

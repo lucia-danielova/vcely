@@ -28,6 +28,7 @@
     <meta name="format-detection" content="telephone=no">
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#143525">
+    <meta name="supabase-anon-key" content="">
 
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
@@ -344,7 +345,7 @@
                 <button type="button" class="saas-mission-link" onclick="openLandingPortal()">Ak nebudú včely, nebude nič.</button>
             </div>
             <div class="saas-omni">
-                <input id="saas-omnibox" type="search" autocomplete="off" placeholder="Hľadať parcelu, IČO, kataster alebo obec..." aria-label="Hľadať parcelu, IČO, kataster alebo obec">
+                <input id="saas-omnibox" type="search" autocomplete="off" placeholder="RÚZ (IČO), kataster C-KN/E-KN alebo vlastný pozemok…" aria-label="RÚZ (IČO), kataster C-KN/E-KN alebo vlastný pozemok">
                 <button type="button" id="saas-omni-filter" class="saas-filter-btn" aria-expanded="false" aria-controls="saas-omni-filters" title="Rýchly filter">▾</button>
                 <div id="saas-omni-filters" class="saas-omni-filters" hidden>
                     <button type="button" data-omni-filter="ckn">C-KN</button>
@@ -776,6 +777,10 @@
                     <span id="db-mode-status" class="text-emerald-700 font-bold">● RÚZ + Kataster + LPIS Aktívne</span>
                 </div>
                 <div class="flex justify-between items-center text-slate-600">
+                    <span>Cloud API:</span>
+                    <span id="cloud-link-status" class="text-slate-500 font-bold">● Overuje sa…</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
                     <span>Chránené včelstvá:</span>
                     <span id="hive-count-status" class="text-amber-700 font-bold">7 stanovíšť v mape</span>
                 </div>
@@ -1012,7 +1017,7 @@
             <!-- 2. MODÁLNE OKNO: VLASTNÉ MENU POUŽÍVATEĽA (OSOBNÝ PORTÁL)    -->
             <!-- ============================================================ -->
             <div id="user-dashboard-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <div class="eco-command-shell bg-white border border-stone-300 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                <div class="eco-command-shell bg-white border border-stone-300 rounded-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
                     
                     <div class="bg-stone-100 border-b border-stone-200 px-6 py-4 flex items-center justify-between shrink-0">
                         <div class="flex items-center space-x-3.5">
@@ -1028,10 +1033,10 @@
                             </div>
                         </div>
                         <div class="eco-command-badges">
-                            <span id="eco-verified-badge" class="eco-verified">✓ Overený v RÚZ & CEVZ</span>
+                            <span id="eco-verified-badge" class="eco-verified"><span class="eco-pulse-dot" aria-hidden="true"></span>✓ Overený v RÚZ & CEVZ</span>
                             <div id="eco-score-badge" class="eco-score" aria-live="polite">
-                                <b>Eko-Skóre: 98/100</b>
-                                <small>Zelený certifikát</small>
+                                <b>🛡️ Eko-Skóre: 98/100</b>
+                                <small>Zelený certifikát ochrany opeľovačov</small>
                             </div>
                             <button type="button" id="eco-export-pdf" class="eco-export">📄 Exportovať úradný výkaz (PDF / Tlač)</button>
                         </div>
@@ -1060,33 +1065,42 @@
                     <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6 bg-stone-50/50">
                         <!-- SEKČIA A: PREHĽAD -->
                         <div id="dash-sec-overview" class="space-y-5">
-                            <div class="eco-widgets" id="eco-widgets">
-                                <section class="eco-widget" aria-labelledby="eco-weather-title">
-                                    <header>
-                                        <h3 id="eco-weather-title">24h AI Okno Postreku</h3>
-                                        <small>Meteo & vietor</small>
-                                    </header>
-                                    <div id="eco-weather-chart" class="eco-chart" role="img" aria-label="Hodinové okná postreku"></div>
-                                    <p id="eco-weather-caption" class="eco-widget-note">Načítavam Open-Meteo…</p>
-                                </section>
-                                <section class="eco-widget" aria-labelledby="eco-nectar-title">
-                                    <header>
-                                        <h3 id="eco-nectar-title">Znáškový & Fenologický Radar</h3>
-                                        <small>3 km</small>
-                                    </header>
-                                    <div id="eco-nectar-bars" class="eco-bars"></div>
-                                    <p id="eco-nectar-index" class="eco-widget-note">Aktivita včiel: —</p>
-                                </section>
-                                <section class="eco-widget" aria-labelledby="eco-health-title">
-                                    <header>
-                                        <h3 id="eco-health-title">Zdravotný & Kolízny Štít</h3>
-                                        <small>Strážca</small>
-                                    </header>
-                                    <p id="eco-guardian-status" class="eco-shield-line">SMS/Push výstrahy: —</p>
-                                    <p id="eco-varroa-status" class="eco-shield-line">Varroa check: —</p>
-                                </section>
-                            </div>
-                            <button type="button" id="eco-collision-sim" class="eco-gold-btn">⚡ Spustiť 3 km Kolíznu Simuláciu</button>
+                            <section id="eco-onboarding" class="eco-onboard" aria-label="Okamžitý radar okolia">
+                                <div id="eco-welcome-banner" class="eco-welcome">
+                                    <span class="eco-pulse-dot" aria-hidden="true"></span>
+                                    <p id="eco-welcome-text">✨ Váš ekosystém je aktívny: prebieha sken 3 km pásma podľa IČO, lokality a stredu mapy…</p>
+                                </div>
+                                <div class="eco-checklist">
+                                    <div class="eco-progress-head">
+                                        <b>Onboarding Checklist</b>
+                                        <span id="eco-progress-label">0 %</span>
+                                    </div>
+                                    <div class="eco-progress" aria-hidden="true">
+                                        <i id="eco-progress-bar"></i>
+                                    </div>
+                                    <ol class="eco-steps">
+                                        <li>
+                                            <button type="button" id="eco-step-verify" data-step="verify">
+                                                1. Overenie RÚZ/CEVZ
+                                                <small id="eco-step-verify-note">Čaká na overenie subjektu</small>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button" id="eco-step-asset" data-step="asset">
+                                                2. Priradenie prvej parcely/včelnice
+                                                <small id="eco-step-asset-note">Nakreslite parcelu alebo pridajte stanovište</small>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button" id="eco-step-shield" data-step="shield">
+                                                3. Aktivácia 3 km strážneho štítu
+                                                <small id="eco-step-shield-note">Zapnite ochranné pásmo a SMS/Push strážcu</small>
+                                            </button>
+                                        </li>
+                                    </ol>
+                                </div>
+                            </section>
+
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                                 <div class="eco-card rounded-2xl p-4 border-l-4 border-l-emerald-600">
                                     <div class="text-[10px] font-bold uppercase text-slate-500">Moje pôdne bloky LPIS</div>
@@ -1105,6 +1119,54 @@
                                 </div>
                             </div>
 
+                            <div class="eco-widgets" id="eco-widgets">
+                                <section class="eco-widget" aria-labelledby="eco-weather-title">
+                                    <header>
+                                        <h3 id="eco-weather-title">24h AI Okno Postreku &amp; Letovej Aktivity</h3>
+                                        <small>Open-Meteo · 3 h bloky</small>
+                                    </header>
+                                    <div id="eco-weather-chart" class="eco-blocks" role="img" aria-label="Trojhodinové okná postreku a letu včiel"></div>
+                                    <div class="eco-legend">
+                                        <span data-level="safe">Bezpečné okno pre postrek</span>
+                                        <span data-level="nectar">Plná znáška včiel</span>
+                                        <span data-level="banned">Zákaz postreku</span>
+                                    </div>
+                                    <p id="eco-weather-caption" class="eco-widget-note">Načítavam Open-Meteo…</p>
+                                </section>
+                                <section class="eco-widget" aria-labelledby="eco-nectar-title">
+                                    <header>
+                                        <h3 id="eco-nectar-title">Znáškový &amp; Fenologický Radar</h3>
+                                        <small>3 km biodiverzita</small>
+                                    </header>
+                                    <div id="eco-nectar-bars" class="eco-bars"></div>
+                                    <p id="eco-nectar-index" class="eco-pollination-index">Index opeľovacej sily: —</p>
+                                </section>
+                                <section class="eco-widget" aria-labelledby="eco-health-title">
+                                    <header>
+                                        <h3 id="eco-health-title">Zdravotný &amp; Kolízny Štít</h3>
+                                        <small>Smart Guard</small>
+                                    </header>
+                                    <div id="eco-health-beekeeper" class="eco-role-panel">
+                                        <p id="eco-varroa-status" class="eco-shield-line">Varroa check: —</p>
+                                        <div class="eco-varroa-row">
+                                            <p id="eco-varroa-date" class="eco-widget-note">Posledná kontrola spádu: —</p>
+                                            <button type="button" id="eco-varroa-log" class="eco-ghost-btn">+ Zapísať kontrolu</button>
+                                        </div>
+                                        <p id="eco-guardian-status" class="eco-shield-line">🔔 SMS / Web Push strážca 3 km: —</p>
+                                    </div>
+                                    <div id="eco-health-farmer" class="eco-role-panel" hidden>
+                                        <p class="eco-shield-line"><strong>Veterný Drift Radar</strong></p>
+                                        <div id="eco-drift-compass" class="eco-compass" aria-hidden="true">
+                                            <b data-dir="n">S</b><b data-dir="e">V</b><b data-dir="s">J</b><b data-dir="w">Z</b>
+                                            <div id="eco-drift-arrow" class="eco-compass-arrow"></div>
+                                        </div>
+                                        <p id="eco-drift-caption" class="eco-widget-note">Načítavam smer vetra z Open-Meteo…</p>
+                                        <p id="eco-guardian-status-agro" class="eco-shield-line">🔔 SMS / Web Push strážca 3 km: —</p>
+                                    </div>
+                                </section>
+                            </div>
+                            <button type="button" id="eco-collision-sim" class="eco-gold-btn">⚡ Spustiť 3 km Kolíznu Simuláciu</button>
+
                             <div class="flex flex-wrap gap-2">
                                 <button onclick="closeUserDashboardModal(); toggleDrawPolygonMode();" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition">
                                     📐 + Nakresliť vlastnú parcelu / sad na mape
@@ -1120,21 +1182,22 @@
                                 </button>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="eco-asset-grid">
                                 <div class="eco-card rounded-2xl p-4 space-y-3">
                                     <div class="flex items-center justify-between border-b border-stone-200 pb-2">
-                                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-emerald-800">🌾 Moje polia a sady (LPIS)</h4>
-                                        <span class="text-[10px] text-slate-500">Kliknutím zobrazíte na mape</span>
+                                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-emerald-800">🌾🐝 Moje parcely a včelnice</h4>
+                                        <span class="text-[10px] text-slate-500">Mini-telemetria 3 km</span>
                                     </div>
-                                    <div id="dash-my-parcels-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
+                                    <div id="dash-my-parcels-list" class="space-y-2 max-h-72 overflow-y-auto custom-scrollbar"></div>
+                                    <div id="dash-my-hives-list" class="space-y-2 max-h-72 overflow-y-auto custom-scrollbar"></div>
                                 </div>
 
                                 <div class="eco-card rounded-2xl p-4 space-y-3">
                                     <div class="flex items-center justify-between border-b border-stone-200 pb-2">
-                                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-amber-800">🐝 Moje včelstvá a úle</h4>
-                                        <span class="text-[10px] text-slate-500">Správa stanovíšť</span>
+                                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-amber-800">📒 Denník postrekov</h4>
+                                        <span class="text-[10px] text-slate-500">ÚKSÚP / 3 km pásmo</span>
                                     </div>
-                                    <div id="dash-my-hives-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
+                                    <div id="dash-spray-diary" class="space-y-2 max-h-[28rem] overflow-y-auto custom-scrollbar"></div>
                                 </div>
                             </div>
                         </div>
@@ -1473,6 +1536,8 @@
             <div id="varroa-list" class="space-y-2 text-xs"></div>
         </form>
     </div>
+
+    <div id="eco-print-root" hidden></div>
 
     <!-- Externé knižnice: Supabase & Leaflet -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

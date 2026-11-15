@@ -28,9 +28,21 @@ const allowedOrigins = new Set(
     .filter(Boolean)
 );
 
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  if (allowedOrigins.has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    if (url.hostname.endsWith('.github.io') || url.hostname === 'github.io') return true;
+    return ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 app.use('/api', (req, res, next) => {
   const origin = (req.headers.origin || '').replace(/\/+$/, '');
-  if (origin && allowedOrigins.has(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Vary', 'Origin');
   }

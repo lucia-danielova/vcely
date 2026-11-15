@@ -11,6 +11,7 @@
 import { CircuitBreaker } from './circuit-breaker.js';
 import { store } from '../core/state-store.js';
 import { lookupEntityByIco, searchEntitiesByQuery, padIco } from './registry-lookup.js';
+import { fetchJson } from './backend-api.js';
 
 if (typeof window.proj4 !== 'undefined') {
     window.proj4.defs(
@@ -245,8 +246,9 @@ export class AgroApiService {
         try {
             const cleanAddress = fullAddress.replace(/\b\d{3}\s?\d{2}\b/g, '').trim();
             const q1 = encodeURIComponent(`${cleanAddress}, Slovakia`);
-            const res1 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=sk&q=${q1}`);
-            const data1 = await res1.json();
+            const data1 = await fetchJson(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=sk&q=${q1}`, {
+                headers: { Accept: 'application/json' }
+            }, 8000);
 
             if (data1 && data1.length > 0) {
                 return { lat: parseFloat(data1[0].lat), lng: parseFloat(data1[0].lon) };
@@ -254,8 +256,9 @@ export class AgroApiService {
 
             const cityPart = fallbackCity || fullAddress.split(',').pop().trim();
             const q2 = encodeURIComponent(`${cityPart}, Slovakia`);
-            const res2 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=sk&q=${q2}`);
-            const data2 = await res2.json();
+            const data2 = await fetchJson(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=sk&q=${q2}`, {
+                headers: { Accept: 'application/json' }
+            }, 8000);
 
             if (data2 && data2.length > 0) {
                 return { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
@@ -277,16 +280,16 @@ export class AgroApiService {
         let municipality = 'Slovenská republika';
 
         try {
-            const elevRes = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat.toFixed(5)}&longitude=${lng.toFixed(5)}`);
-            const elevData = await elevRes.json();
+            const elevData = await fetchJson(`https://api.open-meteo.com/v1/elevation?latitude=${lat.toFixed(5)}&longitude=${lng.toFixed(5)}`, {}, 8000);
             if (elevData && Array.isArray(elevData.elevation) && elevData.elevation.length > 0) {
                 elevation = elevData.elevation[0];
             }
         } catch (e) {}
 
         try {
-            const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16`);
-            const revData = await revRes.json();
+            const revData = await fetchJson(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16`, {
+                headers: { Accept: 'application/json' }
+            }, 8000);
             if (revData && revData.address) {
                 const a = revData.address;
                 locality = a.suburb || a.neighbourhood || a.village || a.town || a.city || locality;

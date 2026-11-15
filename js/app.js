@@ -2,6 +2,7 @@ import { store } from './core/state-store.js';
 import { AgroMapEngine } from './components/map-engine.js';
 import { backendApi } from './services/backend-api.js';
 import { AgroApiService } from './services/api.js';
+import { OfflineSyncService } from './services/offline-sync.js';
 import { bindPwaInstallUi, watchServiceWorkerUpdates, initNativeCapacitorShell } from './services/pwa-install.js';
 import {
   bindAndroidShell,
@@ -65,6 +66,35 @@ let appMapEngine = null;
 let pendingHiveCoordinates = null;
 const publicApi = new AgroApiService();
 
+const SUPABASE_URL = 'https://mwvtwfmerozjelyymmxg.supabase.co';
+
+function readConfiguredAnonKey() {
+  const meta = document.querySelector('meta[name="supabase-anon-key"]')?.getAttribute('content') || '';
+  const fromWindow = typeof window.VCELY_SUPABASE_ANON_KEY === 'string' ? window.VCELY_SUPABASE_ANON_KEY : '';
+  let fromStorage = '';
+  try {
+    fromStorage = localStorage.getItem('vcely_supabase_anon_key') || '';
+  } catch (error) {
+    fromStorage = '';
+  }
+  return [meta, fromWindow, fromStorage].map((value) => String(value || '').trim()).find((value) => value.length > 20) || '';
+}
+
+const SUPABASE_ANON_KEY = readConfiguredAnonKey();
+
+function createVcelySupabase() {
+  if (!SUPABASE_ANON_KEY || !window.supabase?.createClient) return null;
+  try {
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+const supabaseClient = createVcelySupabase();
+
 const $ = (id) => document.getElementById(id);
 
 function getCurrentUserSafe() {
@@ -72,6 +102,459 @@ function getCurrentUserSafe() {
   if (!user) return null;
   const { passwordHash, ...safeUser } = user;
   return safeUser;
+}
+
+function hasApiSession() {
+  return Boolean(backendApi.hasToken?.() || localStorage.getItem('agrogis_api_token_v1'));
+}
+
+function setStatusEl(id, text, tone) {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove('text-emerald-700', 'text-amber-700', 'text-rose-700', 'text-slate-500');
+  el.classList.add(tone);
+}
+
+function refreshCloudStatusBar(mode = store.getState().dbMode, network = store.getState().networkStatus) {
+  const online = network !== 'OFFLINE' && navigator.onLine;
+  if (!online) {
+    setStatusEl('cloud-link-status', '● Offline — lokálna kópia', 'text-rose-700');
+    setStatusEl('db-mode-status', '● RÚZ + Kataster z cache', 'text-amber-700');
+    return;
+  }
+  if (mode === 'CLOUD') {
+    setStatusEl('cloud-link-status', hasApiSession() ? '● Cloud API pripojené' : '● Cloud API živé', 'text-emerald-700');
+    setStatusEl('db-mode-status', '● RÚZ + Kataster + LPIS Aktívne', 'text-emerald-700');
+    return;
+  }
+  if (mode === 'SYNCING') {
+    setStatusEl('cloud-link-status', '● Cloud sa prebúdza…', 'text-amber-700');
+    setStatusEl('db-mode-status', '● RÚZ + Kataster + LPIS Aktívne', 'text-emerald-700');
+    return;
+  }
+  if (mode === 'DEGRADED') {
+    setStatusEl('cloud-link-status', '● Cloud dočasne nedostupný', 'text-amber-700');
+    setStatusEl('db-mode-status', '● RÚZ + Kataster + LPIS (lokálne)', 'text-amber-700');
+    return;
+  }
+  setStatusEl('cloud-link-status', hasApiSession() ? '● Relácia čaká na cloud' : '● Hybridný režim', 'text-slate-500');
+  setStatusEl('db-mode-status', '● RÚZ + Kataster + LPIS Aktívne', 'text-emerald-700');
+}
+
+function setCloudMode(dbMode) {
+  store.setState({
+    dbMode,
+    networkStatus: navigator.onLine ? 'ONLINE' : 'OFFLINE'
+  });
+  refreshCloudStatusBar(dbMode, navigator.onLine ? 'ONLINE' : 'OFFLINE');
+}
+
+async function pingCloudHealth() {
+  if (!navigator.onLine) {
+    setCloudMode('HYBRID_LOCAL');
+    refreshCloudStatusBar('HYBRID_LOCAL', 'OFFLINE');
+    return false;
+  }
+  try {
+    const result = await backendApi.health();
+    if (result?.success || result?.database === 'connected') {
+      setCloudMode('CLOUD');
+      return true;
+    }
+  } catch (error) {
+    if (store.getState().dbMode === 'SYNCING') return false;
+    if (backendApi.isUnavailable(error)) setCloudMode('DEGRADED');
+    else setCloudMode('HYBRID_LOCAL');
+  }
+  return false;
+}
+
+function parcelToApiPayload(parcel) {
+  const ring = (parcel.coords || [])
+    .map((point) => [Number(point[1]), Number(point[0])])
+    .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+  if (ring.length < 3) return null;
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first]);
+  return {
+    externalRegisterId: String(parcel.id || `MAP-${Date.now()}`).slice(0, 100),
+    geometry: { type: 'Polygon', coordinates: [ring] },
+    areaHa: Number(parcel.areaHa) || 0,
+    crop: parcel.crop || 'Neurčená plodina'
+  };
+}
+
+function mapCloudParcel(parcel, user) {
+  const coords = geoJsonPolygonToLeaflet(parcel.geometry);
+  if (!coords) return null;
+  const center = [
+    coords.reduce((sum, point) => sum + point[0], 0) / coords.length,
+    coords.reduce((sum, point) => sum + point[1], 0) / coords.length
+  ];
+  return {
+    id: parcel.externalRegisterId || `CLOUD-${parcel.parcelId}`,
+    serverId: parcel.parcelId,
+    ownerIco: user?.ico || '',
+    ownerName: user?.companyName || user?.name || '',
+    kUzemie: 'Cloud',
+    crop: parcel.crop || 'Neurčená plodina',
+    areaHa: Number(parcel.areaHa || 0),
+    kultura: 'Cloud register',
+    center,
+    coords
+  };
+}
+
+function mapCloudHive(row) {
+  return {
+    id: row.id,
+    serverId: row.id,
+    name: row.name,
+    count: Number(row.count) || 1,
+    email: row.email || '',
+    cevz: row.cevz || '',
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    createdAt: row.createdAt,
+    siteType: 'permanent'
+  };
+}
+
+function mapCloudAlert(row) {
+  const createdAt = row.createdAt || row.updatedAt || new Date().toISOString();
+  return {
+    id: row.id,
+    createdAt,
+    timestamp: !Number.isNaN(Date.parse(createdAt)) ? new Date(createdAt).toLocaleString('sk-SK') : '',
+    type: 'SPRAY_ALERT',
+    title: row.preparationName || 'Hlásenie postreku',
+    locationLabel: row.locationLabel || '',
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    note: row.note || '',
+    status: row.status || 'NAPLANOVANY',
+    senderName: row.isSender ? 'Vy' : 'Ochranné pásmo',
+    senderEmail: '',
+    affectedColonies: 0
+  };
+}
+
+function hiveMergeKey(hive) {
+  if (hive?.serverId) return `srv:${hive.serverId}`;
+  if (hive?.id && !Number.isFinite(Number(hive.id))) return `id:${hive.id}`;
+  const lat = Number(hive?.lat);
+  const lng = Number(hive?.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return `geo:${lat.toFixed(5)}:${lng.toFixed(5)}`;
+  return `id:${hive?.id}`;
+}
+
+function mergeByKey(localItems, remoteItems, keyFn) {
+  const map = new Map();
+  (localItems || []).forEach((item) => map.set(keyFn(item), item));
+  (remoteItems || []).forEach((item) => {
+    const key = keyFn(item);
+    map.set(key, { ...(map.get(key) || {}), ...item });
+  });
+  return [...map.values()];
+}
+
+async function enqueueCloudMutation(type, payload) {
+  try {
+    await OfflineSyncService.enqueueMutation(type, payload);
+  } catch {}
+}
+
+function persistHiveToCloud(hive) {
+  if (!hasApiSession()) return;
+  backendApi.saveHive(hive)
+    .then((hiveId) => {
+      if (!hiveId) return;
+      const withServerId = (store.getState().hives || []).map((item) => (
+        item.id === hive.id || hiveMergeKey(item) === hiveMergeKey(hive)
+          ? { ...item, serverId: hiveId, id: item.serverId ? item.id : hiveId }
+          : item
+      ));
+      store.setState({ hives: withServerId });
+    })
+    .catch(async (error) => {
+      if (backendApi.isUnavailable(error) || !navigator.onLine) {
+        await enqueueCloudMutation('API_SAVE_HIVE', hive);
+        showToast('Včelstvo je vo fronte na cloud', 'info');
+        return;
+      }
+      console.warn('[AGROGIS] hive sync failed:', error);
+    });
+}
+
+function persistParcelToCloud(parcel) {
+  if (!hasApiSession()) return;
+  const payload = parcelToApiPayload(parcel);
+  if (!payload) return;
+  backendApi.saveParcel(payload)
+    .then((result) => {
+      if (!result?.parcelId) return;
+      const updated = (store.getState().lpisParcels || []).map((item) => (
+        item.id === parcel.id ? { ...item, serverId: result.parcelId } : item
+      ));
+      store.setState({ lpisParcels: updated });
+    })
+    .catch(async (error) => {
+      if (backendApi.isUnavailable(error) || !navigator.onLine) {
+        await enqueueCloudMutation('API_SAVE_PARCEL', payload);
+        showToast('Parcela je vo fronte na cloud', 'info');
+        return;
+      }
+      console.warn('[AGROGIS] parcel sync failed:', error);
+    });
+}
+
+function persistSprayAlertToCloud(payload) {
+  if (!hasApiSession()) return;
+  backendApi.reportSprayAlert(payload)
+    .catch(async (error) => {
+      if (backendApi.isUnavailable(error) || !navigator.onLine) {
+        await enqueueCloudMutation('API_SPRAY_ALERT', payload);
+        return;
+      }
+      console.warn('[AGROGIS] spray alert sync failed:', error);
+    });
+}
+
+function mapVcelnicaRow(row) {
+  if (!row || typeof row !== 'object') return null;
+  let lat = Number(row.lat ?? row.latitude ?? row.zemepisna_sirka);
+  let lng = Number(row.lng ?? row.lon ?? row.longitude ?? row.zemepisna_dlzka);
+  const coords = row.geom?.coordinates || row.poloha?.coordinates;
+  if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && Array.isArray(coords) && coords.length >= 2) {
+    lng = Number(coords[0]);
+    lat = Number(coords[1]);
+  }
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return {
+    id: row.id,
+    serverId: row.id,
+    name: row.nazov || row.name || 'Včelnica',
+    count: Number(row.pocet_rodin ?? row.colony_count ?? row.count ?? 1) || 1,
+    email: row.email || row.kontakt_email || row.contact_email || '',
+    cevz: row.cevz || '',
+    lat,
+    lng,
+    siteType: row.typ_stanovista || row.site_type || 'permanent',
+    nectarTags: row.znaska || row.nectar_tags || ''
+  };
+}
+
+function mapBufferHit(row) {
+  const hive = mapVcelnicaRow({
+    ...row,
+    id: row.hive_id ?? row.id,
+    nazov: row.hive_name || row.nazov || row.name,
+    pocet_rodin: row.hive_count ?? row.pocet_rodin ?? row.count,
+    email: row.hive_email || row.email
+  });
+  if (!hive) return null;
+  const meters = Number(row.distance_meters ?? row.vzdialenost_m ?? row.meters);
+  return { hive, meters: Number.isFinite(meters) ? meters : 0 };
+}
+
+async function fetchApiariesInBuffer(lat, lng, radiusMeters = 3000) {
+  if (!supabaseClient || !navigator.onLine) return null;
+  const { data, error } = await supabaseClient.rpc('get_apiaries_in_buffer', {
+    p_lat: Number(lat),
+    p_lng: Number(lng),
+    p_radius_m: radiusMeters
+  });
+  if (error || !Array.isArray(data)) return null;
+  return data.map(mapBufferHit).filter(Boolean);
+}
+
+async function loadVcelniceFromSupabase() {
+  if (!supabaseClient || !navigator.onLine) return;
+  const { data, error } = await supabaseClient.from('vcelnice').select('*').limit(1000);
+  if (error) {
+    setStatusEl('cloud-link-status', '● Supabase čaká na tabuľku vcelnice', 'text-amber-700');
+    return;
+  }
+  const remote = (data || []).map(mapVcelnicaRow).filter(Boolean);
+  if (remote.length) {
+    store.setState({ hives: mergeByKey(store.getState().hives, remote, hiveMergeKey) });
+    if (appMapEngine) appMapEngine.renderAllHives();
+  }
+  setStatusEl('cloud-link-status', '● Supabase PostGIS pripojené', 'text-emerald-700');
+}
+
+async function saveVcelnicaToSupabase(hive) {
+  if (!supabaseClient || !hive) return null;
+  const lat = Number(hive.lat);
+  const lng = Number(hive.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const payload = {
+    nazov: hive.name || 'Nové stanovište',
+    pocet_rodin: Number(hive.count) || 1,
+    lat,
+    lng,
+    cevz: hive.cevz || null,
+    email: hive.email || null,
+    typ_stanovista: hive.siteType || 'permanent',
+    znaska: hive.nectarTags || null,
+    geom: { type: 'Point', coordinates: [lng, lat] }
+  };
+  const { data, error } = await supabaseClient.from('vcelnice').insert(payload).select('id').maybeSingle();
+  if (error) {
+    showToast('Včelnicu sa nepodarilo uložiť do Supabase', 'warning');
+    return null;
+  }
+  return data?.id ?? null;
+}
+
+async function saveSprayEvidenceToSupabase(entry) {
+  if (!supabaseClient || !entry) return null;
+  const lat = Number(entry.lat);
+  const lng = Number(entry.lng);
+  const when = entry.when ? new Date(entry.when) : new Date();
+  const payload = {
+    parcela: entry.parcel || '',
+    vymera_ha: Number(entry.areaHa) || 0,
+    pripravok: entry.product || '',
+    vietor_ms: Number(entry.windMs) || 0,
+    teplota_c: Number(entry.tempC) || 0,
+    cas_aplikacie: Number.isNaN(when.getTime()) ? new Date().toISOString() : when.toISOString(),
+    toxicita: entry.toxicity || 'safe',
+    okno: entry.sprayWindow || 'evening',
+    lat: Number.isFinite(lat) ? lat : null,
+    lng: Number.isFinite(lng) ? lng : null
+  };
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    payload.geom = { type: 'Point', coordinates: [lng, lat] };
+  }
+  const { error } = await supabaseClient.from('evidencia_postrekov').insert(payload);
+  if (error) {
+    showToast('Hlásenie postreku ostalo v knihe. Supabase ho teraz neprijala.', 'warning');
+    return null;
+  }
+  showToast('Hlásenie je v evidencii postrekov', 'success');
+  return true;
+}
+
+let hydrateChain = Promise.resolve();
+
+function hydrateCloudSession(options = {}) {
+  hydrateChain = hydrateChain.then(() => runCloudHydration(options), () => runCloudHydration(options));
+  return hydrateChain;
+}
+
+async function runCloudHydration() {
+  if (!navigator.onLine) {
+    refreshCloudStatusBar('HYBRID_LOCAL', 'OFFLINE');
+    return;
+  }
+  if (!hasApiSession()) {
+    await pingCloudHealth();
+    return;
+  }
+
+  setCloudMode('SYNCING');
+  const currentUser = getCurrentUserSafe();
+  const jobs = await Promise.allSettled([
+    backendApi.getMyHives(),
+    backendApi.getParcels(),
+    backendApi.getMySprayAlerts(),
+    currentUser?.lpisId ? backendApi.getLpisParcels(currentUser.lpisId) : Promise.resolve([])
+  ]);
+
+  if (jobs.some((job) => job.status === 'rejected' && job.reason?.status === 401)) {
+    try { await backendApi.logout(); } catch {}
+    store.setState({ currentUser: null });
+    syncAuthUi();
+    setCloudMode('DEGRADED');
+    setStatusEl('cloud-link-status', '● Relácia vypršala', 'text-rose-700');
+    return;
+  }
+
+  const remoteHives = jobs[0].status === 'fulfilled' ? (jobs[0].value || []).map(mapCloudHive).filter((hive) => Number.isFinite(hive.lat) && Number.isFinite(hive.lng)) : [];
+  const savedParcels = jobs[1].status === 'fulfilled' ? (jobs[1].value || []).map((row) => mapCloudParcel(row, currentUser)).filter(Boolean) : [];
+  const remoteAlerts = jobs[2].status === 'fulfilled' ? (jobs[2].value || []).map(mapCloudAlert) : [];
+  const lpisParcels = jobs[3].status === 'fulfilled'
+    ? (jobs[3].value || []).map((parcel) => mapCloudParcel({
+      ...parcel,
+      parcelId: parcel.parcelId || parcel.externalRegisterId
+    }, currentUser)).filter(Boolean)
+    : [];
+
+  if (remoteHives.length) {
+    store.setState({ hives: mergeByKey(store.getState().hives, remoteHives, hiveMergeKey) });
+  }
+  const incomingParcels = [...savedParcels, ...lpisParcels];
+  if (incomingParcels.length) {
+    store.setState({
+      lpisParcels: mergeByKey(store.getState().lpisParcels, incomingParcels, (parcel) => String(parcel.id))
+    });
+  }
+  if (remoteAlerts.length) {
+    store.setState({
+      sprayAlerts: mergeByKey(store.getState().sprayAlerts, remoteAlerts, (alert) => String(alert.id))
+    });
+  }
+
+  try {
+    await OfflineSyncService.synchronizeBackend(backendApi);
+  } catch {}
+
+  const cloudOk = jobs.filter((job) => job.status === 'fulfilled').length >= 1;
+  const cloudDown = jobs.every((job) => job.status === 'rejected' && backendApi.isUnavailable(job.reason));
+  setCloudMode(cloudDown ? 'DEGRADED' : cloudOk ? 'CLOUD' : 'DEGRADED');
+  refreshDashboardStats();
+  if (appMapEngine) {
+    appMapEngine.renderAllHives?.();
+    appMapEngine.renderLpisParcels?.();
+  }
+}
+
+async function restoreSessionFromCloud() {
+  refreshCloudStatusBar();
+  await pingCloudHealth();
+  if (!hasApiSession()) return;
+  try {
+    const user = await backendApi.getCurrentUser();
+    if (user) {
+      store.setState({ currentUser: user });
+      syncAuthUi();
+      await hydrateCloudSession({ reason: 'boot' });
+      return;
+    }
+  } catch (error) {
+    if (error.status === 401) {
+      try { await backendApi.logout(); } catch {}
+      store.setState({ currentUser: null });
+      syncAuthUi();
+      setStatusEl('cloud-link-status', '● Relácia vypršala', 'text-rose-700');
+      return;
+    }
+    setCloudMode('DEGRADED');
+  }
+  await hydrateCloudSession({ reason: 'boot-local' });
+}
+
+function bindNetworkLifecycle() {
+  window.addEventListener('online', () => {
+    store.setState({ networkStatus: 'ONLINE' });
+    showToast('Spojenie je späť — synchronizujem cloud', 'success');
+    hydrateCloudSession({ reason: 'online' });
+  });
+  window.addEventListener('offline', () => {
+    store.setState({ networkStatus: 'OFFLINE' });
+    refreshCloudStatusBar('HYBRID_LOCAL', 'OFFLINE');
+    showToast('Ste offline. Zmeny sa uložia lokálne a dorazia neskôr.', 'warning');
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && navigator.onLine) pingCloudHealth();
+  });
+  window.setInterval(() => {
+    if (document.hidden || !navigator.onLine) return;
+    pingCloudHealth();
+  }, 45000);
 }
 
 const accountRoleConfig = {
@@ -464,7 +947,7 @@ function openUserDashboardModal() {
   populateProfileForm();
   modal.classList.remove('hidden');
   refreshDashboardStats();
-  syncLpisParcelsFromApi();
+  hydrateCloudSession({ reason: 'dashboard' });
 }
 
 function closeUserDashboardModal() {
@@ -477,6 +960,7 @@ async function handleLogoutUser() {
   try { await backendApi.logout(); } catch {}
   store.setState({ currentUser: null });
   syncAuthUi();
+  pingCloudHealth();
   const headerGuestControls = $('header-guest-controls');
   const headerUserControls = $('header-user-controls');
   if (headerGuestControls) headerGuestControls.classList.remove('hidden');
@@ -516,9 +1000,8 @@ function setBaseMap(name) {
 function finishPolygonDrawing() {
   const badge = $('active-mode-badge');
   if (badge) badge.classList.add('hidden');
-  if (appMapEngine) {
-    appMapEngine.finishDrawingParcel();
-  }
+  const parcel = appMapEngine ? appMapEngine.finishDrawingParcel() : null;
+  if (parcel) persistParcelToCloud(parcel);
   showToast('Parcelná oblasť bola uložená', 'success');
 }
 
@@ -868,6 +1351,51 @@ function createEmptyListItem(text) {
   return el;
 }
 
+function neighborsWithin3km(lat, lng, state) {
+  const originLat = Number(lat);
+  const originLng = Number(lng);
+  const hives = (state.hives || []).filter((hive) => {
+    const meters = AgroApiService.calculateDistanceMeters(originLat, originLng, Number(hive.lat), Number(hive.lng));
+    return Number.isFinite(meters) && meters <= 3000;
+  });
+  const parcels = (state.lpisParcels || []).filter((parcel) => {
+    const center = Array.isArray(parcel.center) ? parcel.center : null;
+    if (!center) return false;
+    const meters = AgroApiService.calculateDistanceMeters(originLat, originLng, Number(center[0]), Number(center[1]));
+    return Number.isFinite(meters) && meters <= 3000;
+  });
+  const alerts = (state.sprayAlerts || []).filter((alert) => {
+    if (!Number.isFinite(Number(alert.lat)) || !Number.isFinite(Number(alert.lng))) return false;
+    return AgroApiService.calculateDistanceMeters(originLat, originLng, Number(alert.lat), Number(alert.lng)) <= 3000;
+  });
+  return { hives, parcels, alerts };
+}
+
+function appendTelemetry(host, chips) {
+  const row = document.createElement('div');
+  row.className = 'eco-telemetry';
+  chips.forEach((chip) => {
+    const span = document.createElement('span');
+    span.className = `eco-chip${chip.tone ? ` ${chip.tone}` : ''}`;
+    span.textContent = chip.text;
+    row.appendChild(span);
+  });
+  host.appendChild(row);
+}
+
+function appendCollisionButton(host, lat, lng, label) {
+  const sim = document.createElement('button');
+  sim.type = 'button';
+  sim.className = 'eco-sim-btn';
+  sim.textContent = '⚡ Spustiť 3 km Kolíznu Simuláciu';
+  sim.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.startCollisionSimulation?.(lat, lng, label);
+  });
+  host.appendChild(sim);
+}
+
 function renderDashboardLists(state) {
   const userIco = state.currentUser?.ico || '';
   const parcels = state.lpisParcels.filter((p) => p.ownerIco === userIco);
@@ -891,7 +1419,22 @@ function renderDashboardLists(state) {
       detail.textContent = `${parcel.crop || 'Neurčená plodina'} • ${parcel.kUzemie || ''}`;
 
       item.append(title, detail);
-      item.addEventListener('click', () => focusLpisParcelOnMap(parcel.id));
+      const lat = Number(parcel.center?.[0]);
+      const lng = Number(parcel.center?.[1]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const near = neighborsWithin3km(lat, lng, state);
+        const safe = near.hives.length === 0 && near.alerts.length === 0;
+        appendTelemetry(item, [
+          { text: `${Number(parcel.areaHa || 0).toFixed(2)} ha` },
+          { text: `${near.hives.length} susedných úľov v 3 km` },
+          { text: safe ? 'Bezpečný stav' : `${near.hives.length ? 'Kolízia s včelnicami' : 'Hlásený postrek'}`, tone: safe ? 'is-safe' : 'is-risk' }
+        ]);
+        appendCollisionButton(item, lat, lng, parcel.id);
+      }
+      item.addEventListener('click', (event) => {
+        if (event.target.closest('.eco-sim-btn')) return;
+        focusLpisParcelOnMap(parcel.id);
+      });
       parcelsList.appendChild(item);
     });
   }
@@ -916,7 +1459,23 @@ function renderDashboardLists(state) {
       detail.textContent = `${hive.cevz || 'bez CEVZ'} • ${Number(hive.lat).toFixed(4)}, ${Number(hive.lng).toFixed(4)}`;
 
       item.append(title, detail);
-      item.addEventListener('click', () => focusHiveOnMap(hive.id));
+      const lat = Number(hive.lat);
+      const lng = Number(hive.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const near = neighborsWithin3km(lat, lng, state);
+        const area = near.parcels.reduce((sum, parcel) => sum + Number(parcel.areaHa || 0), 0);
+        const safe = near.alerts.length === 0;
+        appendTelemetry(item, [
+          { text: `${area.toFixed(1)} ha LPIS v 3 km` },
+          { text: `${near.hives.length} úľov v pásme` },
+          { text: safe ? 'Pásmo bez postreku' : `${near.alerts.length} výstrah v 3 km`, tone: safe ? 'is-safe' : 'is-risk' }
+        ]);
+        appendCollisionButton(item, lat, lng, hive.name || 'včelnica');
+      }
+      item.addEventListener('click', (event) => {
+        if (event.target.closest('.eco-sim-btn')) return;
+        focusHiveOnMap(hive.id);
+      });
       hivesList.appendChild(item);
     });
   }
@@ -959,6 +1518,38 @@ function renderDashboardLists(state) {
 
       item.append(head, detail, meta);
       alertsTable.appendChild(item);
+    });
+  }
+
+  const diary = $('dash-spray-diary');
+  if (diary) {
+    diary.replaceChildren();
+    const book = readJsonList(SPRAY_BOOK_KEY);
+    const alerts = state.sprayAlerts || [];
+    if (!book.length && !alerts.length) {
+      diary.appendChild(createEmptyListItem('Denník postrekov je prázdny. Záznamy z úradnej knihy a 3 km výstrahy sa objavia tu.'));
+    }
+    book.forEach((row) => {
+      const item = document.createElement('div');
+      item.className = 'bg-white border border-stone-200 rounded-xl px-3 py-2 text-[11px] text-slate-700 space-y-1';
+      const title = document.createElement('div');
+      title.className = 'font-bold text-slate-800';
+      title.textContent = `🚜 ${row.product || 'Prípravok'} · ${row.parcel || 'parcela'}`;
+      const meta = document.createElement('div');
+      meta.textContent = `${row.when || ''} · ${row.areaHa || 0} ha · vietor ${row.windMs || '—'} m/s · ${row.tempC || '—'} °C · ${spraySafetyText(row.toxicity)} · ${sprayWindowText(row.sprayWindow)}`;
+      item.append(title, meta);
+      diary.appendChild(item);
+    });
+    alerts.forEach((alert) => {
+      const item = document.createElement('div');
+      item.className = 'bg-white border border-stone-200 rounded-xl px-3 py-2 text-[11px] text-slate-700 space-y-1';
+      const title = document.createElement('div');
+      title.className = 'font-bold text-slate-800';
+      title.textContent = `⚠️ ${alert.title || 'Výstraha 3 km'} · ${alert.timestamp || ''}`;
+      const detail = document.createElement('div');
+      detail.textContent = [alert.locationLabel || alert.location || '', alert.senderName || ''].filter(Boolean).join(' • ');
+      item.append(title, detail);
+      diary.appendChild(item);
     });
   }
 }
@@ -1377,6 +1968,7 @@ function quickDemoLogin(email, password) {
   closeAuthModal();
   closeLandingPortal();
   showToast(`Prihlásený demo používateľ: ${safeUser.name}`, 'success');
+  window.maybeBeginOnboarding?.(safeUser, false);
 }
 
 async function submitLoginForm(event) {
@@ -1396,6 +1988,8 @@ async function submitLoginForm(event) {
     closeAuthModal();
     closeLandingPortal();
     showToast(`Vitajte, ${user.name}`, 'success');
+    window.maybeBeginOnboarding?.(user, false);
+    hydrateCloudSession({ reason: 'login' });
     return;
   } catch (error) {
     if (!backendApi.isUnavailable(error)) {
@@ -1416,6 +2010,7 @@ async function submitLoginForm(event) {
   closeAuthModal();
   closeLandingPortal();
   showToast(`Vitajte, ${safeUser.name} (lokálny režim)`, 'info');
+  window.maybeBeginOnboarding?.(safeUser, false);
 }
 
 async function submitRegisterForm(event) {
@@ -1475,6 +2070,8 @@ async function submitRegisterForm(event) {
     closeAuthModal();
     closeLandingPortal();
     showToast('Účet bol vytvorený v databáze', 'success');
+    window.maybeBeginOnboarding?.(user, true);
+    hydrateCloudSession({ reason: 'register' });
     return;
   } catch (error) {
     if (!backendApi.isUnavailable(error)) {
@@ -1514,6 +2111,7 @@ async function submitRegisterForm(event) {
   closeAuthModal();
   closeLandingPortal();
   showToast('Registrácia bola uložená lokálne (backend nie je dostupný)', 'info');
+  window.maybeBeginOnboarding?.(sanitizeUser(newUser), true);
 }
 
 function switchDashboardSection(tabName) {
@@ -1592,6 +2190,7 @@ async function saveUserProfileChanges(event) {
       store.setState({ currentUser: { ...nextUser, ...updatedFromServer, email: updatedFromServer.email || currentUser.email } });
       syncAuthUi();
       showToast('Profil bol uložený', 'success');
+      hydrateCloudSession({ reason: 'profile' });
       return;
     }
   } catch (error) {
@@ -1720,17 +2319,9 @@ function confirmAddHive() {
   if (appMapEngine) appMapEngine.renderAllHives();
   showToast('Včelstvo bolo pridané do mapy', 'success');
 
-  if (getCurrentUserSafe() && localStorage.getItem('agrogis_api_token_v1')) {
-    backendApi.saveHive(hive)
-      .then((hiveId) => {
-        if (!hiveId) return;
-        const withServerId = (store.getState().hives || []).map((h) => (h.id === hive.id ? { ...h, serverId: hiveId } : h));
-        store.setState({ hives: withServerId });
-      })
-      .catch((error) => {
-        if (!backendApi.isUnavailable(error)) console.warn('[AGROGIS] hive sync failed:', error);
-      });
-  }
+  persistHiveToCloud(hive);
+  saveVcelnicaToSupabase(hive);
+  refreshDashboardStats();
 }
 
 function focusUserAssetsOnMap() {
@@ -1752,6 +2343,10 @@ function focusUserAssetsOnMap() {
 }
 
 function printInspectionReport() {
+  if (typeof window.exportOfficialReport === 'function' && store.getState().currentUser) {
+    window.exportOfficialReport();
+    return;
+  }
   window.print();
   showToast('Protokol bol pripravený na tlač', 'info');
 }
@@ -1809,16 +2404,12 @@ function triggerSprayAlertEmails(lat, lng, collisionsCount, totalColonies) {
     note: 'Notifikácie odoslané včelárom v 3 km ochrannom pásme.'
   });
 
-  if (currentUser && localStorage.getItem('agrogis_api_token_v1')) {
-    backendApi.reportSprayAlert({
-      lat: Number(lat),
-      lng: Number(lng),
-      locationLabel: report?.contextLabel || '',
-      note: `Zasiahnuté stanoviská: ${collisionsCount} (${totalColonies} rodín)`
-    }).catch((error) => {
-      if (!backendApi.isUnavailable(error)) console.warn('[AGROGIS] spray alert sync failed:', error);
-    });
-  }
+  persistSprayAlertToCloud({
+    lat: Number(lat),
+    lng: Number(lng),
+    locationLabel: report?.contextLabel || '',
+    note: `Zasiahnuté stanoviská: ${collisionsCount} (${totalColonies} rodín)`
+  });
 
   refreshDashboardStats();
   showToast(`Odoslané výstrahy pre ${collisionsCount} stanovíšť (${totalColonies} rodín)`, 'info');
@@ -1882,7 +2473,8 @@ function renderSprayBookList() {
 function saveSprayBookEntry(event) {
   event.preventDefault();
   const rows = readJsonList(SPRAY_BOOK_KEY);
-  rows.unshift({
+  const point = typeof window.selectedSprayPoint === 'function' ? window.selectedSprayPoint() : null;
+  const entry = {
     id: Date.now(),
     parcel: $('spray-parcel')?.value?.trim() || '',
     areaHa: Number($('spray-area')?.value || 0),
@@ -1891,9 +2483,13 @@ function saveSprayBookEntry(event) {
     tempC: Number($('spray-temp')?.value || 0),
     when: $('spray-when')?.value || '',
     toxicity: $('spray-toxicity-value')?.value || '',
-    sprayWindow: $('spray-window-value')?.value || ''
-  });
+    sprayWindow: $('spray-window-value')?.value || '',
+    lat: Number(point?.lat),
+    lng: Number(point?.lng)
+  };
+  rows.unshift(entry);
   localStorage.setItem(SPRAY_BOOK_KEY, JSON.stringify(rows));
+  saveSprayEvidenceToSupabase(entry);
   renderSprayBookList();
   showToast('Záznam postreku je v knihe', 'success');
   event.target.reset();
@@ -2100,14 +2696,9 @@ function initUi() {
   setBaseMap('ortho');
   syncAuthUi();
   refreshDashboardStats();
-  if (localStorage.getItem('agrogis_api_token_v1')) {
-    backendApi.getCurrentUser().then((user) => {
-      if (user) {
-        store.setState({ currentUser: user });
-        syncAuthUi();
-      }
-    }).catch(() => backendApi.logout());
-  }
+  refreshCloudStatusBar();
+  bindNetworkLifecycle();
+  restoreSessionFromCloud();
 
   const authModal = $('modal-community-auth');
   const userDashboardModal = $('user-dashboard-modal');
@@ -2127,8 +2718,9 @@ function initUi() {
 
 function initMapApp() {
   if (!appMapEngine) {
-    appMapEngine = new AgroMapEngine('interactive-nature-map', null, false);
+    appMapEngine = new AgroMapEngine('interactive-nature-map', supabaseClient, Boolean(supabaseClient));
     window.agrogisMap = appMapEngine;
+    loadVcelniceFromSupabase();
   }
 }
 
@@ -2244,6 +2836,11 @@ window.closeVarroaMonitor = closeVarroaMonitor;
 window.saveVarroaEntry = saveVarroaEntry;
 window.exportVarroaProtocol = exportVarroaProtocol;
 window.triggerSprayAlertEmails = triggerSprayAlertEmails;
+window.fetchApiariesInBuffer = fetchApiariesInBuffer;
+window.loadVcelniceFromSupabase = loadVcelniceFromSupabase;
+window.refreshDashboardStats = refreshDashboardStats;
+window.persistParcelToCloud = persistParcelToCloud;
+window.hydrateCloudSession = hydrateCloudSession;
 window.updatePersonaUi = updatePersonaUi;
 window.showToast = showToast;
 window.appMapEngine = () => appMapEngine;

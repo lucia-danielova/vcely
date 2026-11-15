@@ -1,11 +1,12 @@
-const SHELL_CACHE = 'vcely-shell-v4';
-const RUNTIME_CACHE = 'vcely-runtime-v4';
+const SHELL_CACHE = 'vcely-shell-v7';
+const RUNTIME_CACHE = 'vcely-runtime-v7';
 const SHELL_FILES = [
 	'./',
 	'./index.html',
 	'./offline.html',
 	'./manifest.json',
 	'./css/style.css',
+	'./css/saas-dashboard.css',
 	'./assets/agrogis-icon.svg',
 	'./assets/agrogis-192.png',
 	'./assets/agrogis-512.png',
@@ -19,6 +20,9 @@ const SHELL_FILES = [
 	'./js/components/event-bus.js',
 	'./js/components/map-engine.js',
 	'./js/components/android-shell.js',
+	'./js/components/saas-shell.js',
+	'./js/components/ecosystem-center.js',
+	'./css/ecosystem-center.css',
 	'./js/services/api.js',
 	'./js/services/auth.js',
 	'./js/services/backend-api.js',

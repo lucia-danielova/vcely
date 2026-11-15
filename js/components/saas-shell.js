@@ -6,6 +6,7 @@
 
 import { store } from '../core/state-store.js';
 import { AgroApiService } from '../services/api.js';
+import { fetchJson } from '../services/backend-api.js';
 
 const PERSONA_BY_MODE = {
     hobby: 'AGRO_HOBBY',
@@ -399,8 +400,7 @@ async function loadPillForecast() {
     const center = map.getCenter();
     try {
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${center.lat.toFixed(4)}&longitude=${center.lng.toFixed(4)}&hourly=temperature_2m,wind_speed_10m&wind_speed_unit=ms&forecast_hours=24&timezone=Europe%2FBratislava`;
-        const response = await fetch(url);
-        const data = await response.json();
+        const data = await fetchJson(url, {}, 8000);
         const times = data?.hourly?.time || [];
         const temps = data?.hourly?.temperature_2m || [];
         const winds = data?.hourly?.wind_speed_10m || [];

@@ -85,11 +85,13 @@ body.saas-app.map-app-open #saas-layer-bar,
 body.saas-app.map-app-open #analysis-result-panel,
 body.saas-app.map-app-open #geo-coord-pill,
 body.saas-app.map-app-open #map-tool-rail {
-    background: rgba(22, 34, 24, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(16, 26, 19, 0.94);
+    border: 1px solid rgba(16, 185, 129, 0.32);
     border-radius: 16px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(245, 158, 11, 0.12);
     color: #e8f2eb;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
 }
 
 body.saas-app.map-app-open #left-sidebar {
@@ -107,8 +109,13 @@ body.saas-app.map-app-open #left-sidebar {
     pointer-events: auto;
     overflow: hidden;
     padding: 0;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+
+body.saas-app.map-app-open #search-box-ico,
+body.saas-app.map-app-open #search-box-cadastre {
+    display: none;
 }
 
 body.saas-app.map-app-open #left-sidebar.w-0,
@@ -493,12 +500,12 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 }
 
 body.saas-app.map-app-open #weather-safety-wrap {
-    top: 84px;
-    left: 392px;
-    right: 78px;
-    width: auto;
-    max-width: none;
-    transform: none;
+    top: 16px;
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: min(760px, calc(100vw - 32px));
+    transform: translateX(-50%);
     align-items: center;
     overflow: visible;
     background: transparent;
@@ -512,8 +519,10 @@ body.saas-app.map-app-open #weather-safety-wrap {
 @media (min-width: 1280px) {
     body.saas-app.map-app-open #weather-safety-wrap {
         top: 16px;
-        right: 456px;
-        overflow: hidden;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        overflow: visible;
     }
 }
 
@@ -533,10 +542,10 @@ body.saas-app.map-app-open #weather-safety-wrap {
     border: 0;
     border-radius: 999px;
     padding: 8px 10px 8px 12px;
-    background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(16, 26, 19, 0.94);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(245, 158, 11, 0.45);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     color: #f8faf8;
     cursor: pointer;
@@ -606,10 +615,10 @@ body.saas-app.map-app-open #weather-safety-wrap {
     width: min(320px, 100%);
     padding: 12px 14px;
     border-radius: 16px;
-    background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(16, 26, 19, 0.94);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(16, 185, 129, 0.32);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     color: #e8f2eb;
 }
