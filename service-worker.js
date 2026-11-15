@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'vcely-shell-v2';
-const RUNTIME_CACHE = 'vcely-runtime-v2';
+const SHELL_CACHE = 'vcely-shell-v3';
+const RUNTIME_CACHE = 'vcely-runtime-v3';
 const SHELL_FILES = [
 	'./',
 	'./index.html',

@@ -210,14 +210,15 @@ AGROGIS SLOVENSKO je navrhnutý ako geopriestorová platforma pre včelárov a p
 
 Tento dokument slúži ako základ pre ďalší vývoj, implementáciu, testovanie a nasadenie projektu v produkčnom prostredí.
 
-## Android aplikácia (PWA + Capacitor)
+## Inštalácia aplikácie (Windows + Android)
 
-Aplikácia je pripravená ako **profesionálna Android inštalácia**:
+Aplikácia je **PWA** — nainštalujete ju ako samostatnú appku:
 
-1. **PWA** — v Chrome na Androide banner *Nainštalovať na Android* / *Pridať na plochu* (standalone, splash, spodná navigácia, offline shell).
-2. **Natívny APK** — Capacitor projekt v `android/` (`sk.vcely.ochrana`). Build: `npm run cap:sync` a potom `cd android && ./gradlew assembleDebug`, alebo GitHub Action `Build Android APK`.
+1. **Windows** — Edge alebo Chrome → banner *Nainštalovať na Windows*, alebo ⋯ → Aplikácie → *Inštalovať túto lokalitu ako aplikáciu* (Štart + pracovná plocha).
+2. **Android** — Chrome → *Inštalovať aplikáciu* / *Pridať na plochu* (standalone, splash, spodná navigácia).
+3. **Natívny APK** — Capacitor v `android/` (`sk.vcely.ochrana`): `npm run cap:sync` + Gradle / GitHub Action `Build Android APK`.
 
-Detailný návod: [docs/android.md](docs/android.md).
+Návod: [docs/install.md](docs/install.md) · APK detaily: [docs/android.md](docs/android.md).
 
 ## Nasadenie PWA a API
 

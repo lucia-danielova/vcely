@@ -1,7 +1,7 @@
 {
   "name": "vcely",
   "version": "2.0.0",
-  "description": "Včely a pôda — Android-installable PWA / Capacitor app for protecting bees and soil in Slovakia",
+  "description": "Včely a pôda — Windows + Android installable PWA / Capacitor app for protecting bees and soil in Slovakia",
   "main": "service-worker.js",
   "scripts": {
     "start": "node server/index.js",

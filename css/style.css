@@ -1064,6 +1064,17 @@ body.android-app-shell {
     line-height: 1.35;
 }
 
+.android-install-copy #android-install-windows-hint {
+    display: block;
+    margin-top: 0.2rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid rgba(4, 120, 87, 0.12);
+}
+
+.android-install-banner[data-platform="windows"] {
+    max-width: min(520px, calc(100vw - 24px));
+}
+
 .android-install-actions {
     display: flex;
     flex-direction: column;
