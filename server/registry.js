@@ -116,7 +116,15 @@ function mergeEntities(parts) {
     }
     if (Number.isFinite(Number(part.lat)) && merged.lat == null) merged.lat = Number(part.lat);
     if (Number.isFinite(Number(part.lng)) && merged.lng == null) merged.lng = Number(part.lng);
-    if (part.source) sources.push(part.source);
+    // Prefer full register names from part.sources; fall back to part.source.
+    // Skip already-compacted labels (contain '+') so re-merges do not pollute sources.
+    if (Array.isArray(part.sources) && part.sources.length) {
+      for (const full of part.sources) {
+        if (full && !String(full).includes('+')) sources.push(String(full));
+      }
+    } else if (part.source && !String(part.source).includes('+')) {
+      sources.push(String(part.source));
+    }
   }
 
   merged.sources = [...new Set(sources)];
@@ -130,21 +138,33 @@ function mergeEntities(parts) {
 
 const SOURCE_SHORT_LABELS = [
   [/Apino/i, 'Apino'],
-  [/statistics\.sk|ŠÚ SR RPO|^RPO\b/i, 'RPO'],
+  [/statistics\.sk|ŠÚ SR RPO|\bRPO\b/i, 'RPO'],
   [/RegisterUZ|RÚZ/i, 'RÚZ'],
   [/ORSR/i, 'ORSR'],
-  [/Slovensko\.Digital|datahub/i, 'Datahub'],
+  [/Slovensko\.Digital|datahub|Datahub/i, 'Datahub'],
   [/Lokálny|local/i, 'Lokálny']
 ];
+
+function expandSourceTokens(value) {
+  const text = String(value || '').trim();
+  if (!text) return [];
+  // Already-compacted labels like "RPO+ORSR+Datahub" must split, not match as one RPO hit.
+  if (text.includes('+')) {
+    return text.split('+').map((part) => part.trim()).filter(Boolean);
+  }
+  return [text];
+}
 
 function compactSourceLabel(sources, maxLen = 120) {
   const list = Array.isArray(sources) ? sources.filter(Boolean) : [];
   if (!list.length) return 'Verejné registre SR';
   const shorts = [];
   for (const source of list) {
-    const hit = SOURCE_SHORT_LABELS.find(([pattern]) => pattern.test(String(source)));
-    const label = hit ? hit[1] : String(source).slice(0, 24);
-    if (!shorts.includes(label)) shorts.push(label);
+    for (const token of expandSourceTokens(source)) {
+      const hit = SOURCE_SHORT_LABELS.find(([pattern]) => pattern.test(token));
+      const label = hit ? hit[1] : token.slice(0, 24);
+      if (!shorts.includes(label)) shorts.push(label);
+    }
   }
   const joined = shorts.join('+') || 'Verejné registre SR';
   return joined.length <= maxLen ? joined : `${joined.slice(0, maxLen - 1)}…`;

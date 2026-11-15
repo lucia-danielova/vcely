@@ -78,6 +78,44 @@ test('compact source label stays within VARCHAR(120)', () => {
   assert.match(label, /RÚZ|ORSR|Datahub/);
 });
 
+test('re-merge keeps full sources and expands compacted labels', () => {
+  const first = mergeEntities([
+    { ico: '47700203', name: 'NaVidieku.sk s. r. o.', source: 'ŠÚ SR RPO (api.statistics.sk)' },
+    { ico: '47700203', name: 'NaVidieku.sk s. r. o.', source: 'ORSR (sluzby.orsr.sk)' }
+  ]);
+  const second = mergeEntities([
+    first,
+    { ico: '47700203', name: 'NaVidieku.sk s. r. o.', source: 'RegisterUZ.sk (MF SR)' },
+    {
+      ico: '47700203',
+      name: 'NaVidieku.sk s. r. o.',
+      source: 'Slovensko.Digital Datahub (datahub.ekosystem.slovensko.digital)'
+    }
+  ]);
+
+  assert.ok(second.sources.some((s) => /statistics\.sk/i.test(s)));
+  assert.ok(second.sources.some((s) => /ORSR/i.test(s)));
+  assert.ok(second.sources.some((s) => /RegisterUZ/i.test(s)));
+  assert.ok(second.sources.some((s) => /Slovensko\.Digital/i.test(s)));
+  assert.equal(second.sources.some((s) => String(s).includes('+')), false);
+  assert.ok(second.source.length <= 120);
+  assert.match(second.source, /RPO/);
+  assert.match(second.source, /ORSR/);
+  assert.match(second.source, /RÚZ/);
+  assert.match(second.source, /Datahub/);
+
+  // Compacted-only input must still expand all tokens, not collapse to RPO.
+  const fromCompact = mergeEntities([
+    { ico: '47700203', name: 'X', source: 'RPO+ORSR', sources: ['ŠÚ SR RPO (api.statistics.sk)', 'ORSR (sluzby.orsr.sk)'] },
+    { ico: '47700203', name: 'X', source: 'RegisterUZ.sk (MF SR)' }
+  ]);
+  assert.match(fromCompact.source, /RPO/);
+  assert.match(fromCompact.source, /ORSR/);
+  assert.match(fromCompact.source, /RÚZ/);
+  assert.ok(fromCompact.sources.some((s) => /RegisterUZ/i.test(s)));
+  assert.ok(fromCompact.sources.some((s) => /statistics\.sk|ORSR/i.test(s)));
+});
+
 test('live IČO lookup returns merged public registry data for a known company', async () => {
   const entity = await lookupEntityByIco('47700203');
   assert.ok(entity, 'expected a live registry hit');
