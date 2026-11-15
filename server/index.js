@@ -6,6 +6,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('./db');
 const { isValidLpisId, isLpisSourceConfigured, fetchLpisParcelsFromSource, listLocalLpisParcels } = require('./lpis');
+const { lookupEntityByIco, searchEntitiesByQuery, padIco } = require('./registry');
 
 const app = express();
 const port = Number(process.env.PORT || 8000);
@@ -131,31 +132,11 @@ async function generateCevzCode() {
   throw new Error('CEVZ_GENERATION_FAILED');
 }
 
-async function fetchRegisterUz(ico) {
+async function fetchPublicRegistryEntity(ico) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 7000);
   try {
-    const url = `https://www.registeruz.sk/cruz-public/api/uctovne-jednotky?zmenene-od=2000-01-01&ico=${encodeURIComponent(ico.padStart(8, '0'))}`;
-    const listResponse = await fetch(url, { signal: controller.signal });
-    if (!listResponse.ok) return null;
-    const list = await listResponse.json();
-    const id = Array.isArray(list?.id) ? list.id[0] : null;
-    if (!id) return null;
-
-    const detailResponse = await fetch(`https://www.registeruz.sk/cruz-public/api/uctovna-jednotka?id=${encodeURIComponent(id)}`, { signal: controller.signal });
-    if (!detailResponse.ok) return null;
-    const detail = await detailResponse.json();
-    const city = String(detail.mesto || '').trim();
-    const street = String(detail.ulica || '').trim();
-    const postalCode = String(detail.psc || '').trim();
-    return {
-      ico: String(detail.ico || ico.padStart(8, '0')),
-      name: String(detail.nazovUJ || '').trim(),
-      type: detail.pravnaForma ? `Právna forma: ${detail.pravnaForma}` : 'Registrovaný subjekt SR (RÚZ)',
-      address: [street, [postalCode, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
-      city,
-      source: 'RegisterUZ.sk (MF SR)'
-    };
+    return await lookupEntityByIco(ico, controller.signal);
   } finally {
     clearTimeout(timeout);
   }
@@ -281,31 +262,50 @@ app.delete('/api/users/me', authenticate, async (req, res, next) => {
 });
 
 app.post('/api/registry/verify-entity', async (req, res, next) => {
-  if (!requireDatabase(res)) return;
   const ico = cleanIco(req.body?.ico);
-  if (!icoPattern.test(ico)) return sendError(res, 400, 'VALIDATION_ERROR', 'IČO musí obsahovať 6 až 10 číslic.');
+  if (!icoPattern.test(ico.replace(/\D/g, '') || ico)) {
+    return sendError(res, 400, 'VALIDATION_ERROR', 'IČO musí obsahovať 6 až 10 číslic.');
+  }
 
   try {
-    const cached = await pool.query('SELECT * FROM registered_entities WHERE ico = $1', [ico.padStart(8, '0')]);
-    let entity = cached.rows[0] ? {
-      ico: cached.rows[0].ico,
-      name: cached.rows[0].name,
-      type: cached.rows[0].type,
-      address: cached.rows[0].address,
-      city: cached.rows[0].city,
-      lat: cached.rows[0].lat,
-      lng: cached.rows[0].lng,
-      source: cached.rows[0].source
-    } : await fetchRegisterUz(ico);
+    let cached = null;
+    if (pool) {
+      const cachedResult = await pool.query('SELECT * FROM registered_entities WHERE ico = $1', [padIco(ico)]);
+      cached = cachedResult.rows[0] || null;
+    }
+
+    const live = await fetchPublicRegistryEntity(ico);
+    let entity = live || (cached ? {
+      ico: cached.ico,
+      name: cached.name,
+      type: cached.type,
+      address: cached.address,
+      city: cached.city,
+      lat: cached.lat,
+      lng: cached.lng,
+      source: cached.source
+    } : null);
 
     if (!entity?.name) return sendError(res, 404, 'ENTITY_NOT_FOUND');
-    await pool.query(
-      `INSERT INTO registered_entities (ico, name, type, address, city, lat, lng, source)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       ON CONFLICT (ico) DO UPDATE SET name=EXCLUDED.name, type=EXCLUDED.type, address=EXCLUDED.address,
-       city=EXCLUDED.city, lat=COALESCE(EXCLUDED.lat, registered_entities.lat), lng=COALESCE(EXCLUDED.lng, registered_entities.lng), source=EXCLUDED.source, updated_at=NOW()`,
-      [entity.ico.padStart(8, '0'), entity.name, entity.type || null, entity.address || null, entity.city || null, entity.lat || null, entity.lng || null, entity.source]
-    );
+
+    if (pool) {
+      await pool.query(
+        `INSERT INTO registered_entities (ico, name, type, address, city, lat, lng, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (ico) DO UPDATE SET name=EXCLUDED.name, type=EXCLUDED.type, address=EXCLUDED.address,
+         city=EXCLUDED.city, lat=COALESCE(EXCLUDED.lat, registered_entities.lat), lng=COALESCE(EXCLUDED.lng, registered_entities.lng), source=EXCLUDED.source, updated_at=NOW()`,
+        [
+          padIco(entity.ico),
+          entity.name,
+          entity.type || null,
+          entity.address || null,
+          entity.city || null,
+          entity.lat || null,
+          entity.lng || null,
+          String(entity.source || 'Verejné registre SR').slice(0, 120)
+        ]
+      );
+    }
     res.json({ success: true, entity });
   } catch (error) {
     if (error.name === 'AbortError') return sendError(res, 504, 'REGISTRY_TIMEOUT');
@@ -314,17 +314,37 @@ app.post('/api/registry/verify-entity', async (req, res, next) => {
 });
 
 app.get('/api/registry/entities', async (req, res, next) => {
-  if (!requireDatabase(res)) return;
   const query = String(req.query.q || '').trim();
   if (query.length < 2) return res.json({ success: true, entities: [] });
   try {
-    const result = await pool.query(
-      `SELECT ico, name, type, address, city, lat, lng, source
-       FROM registered_entities WHERE ico ILIKE $1 OR name ILIKE $2 OR city ILIKE $2
-       ORDER BY name LIMIT 20`,
-      [`%${cleanIco(query)}%`, `%${query}%`]
-    );
-    res.json({ success: true, entities: result.rows });
+    const liveController = new AbortController();
+    const liveTimeout = setTimeout(() => liveController.abort(), 6500);
+    let live = [];
+    try {
+      live = await searchEntitiesByQuery(query, liveController.signal);
+    } catch (error) {
+      if (error.name !== 'AbortError') throw error;
+    } finally {
+      clearTimeout(liveTimeout);
+    }
+
+    let cachedRows = [];
+    if (pool) {
+      const result = await pool.query(
+        `SELECT ico, name, type, address, city, lat, lng, source
+         FROM registered_entities WHERE ico ILIKE $1 OR name ILIKE $2 OR city ILIKE $2
+         ORDER BY name LIMIT 20`,
+        [`%${cleanIco(query)}%`, `%${query}%`]
+      );
+      cachedRows = result.rows;
+    }
+
+    const byIco = new Map();
+    for (const row of [...live, ...cachedRows]) {
+      const key = padIco(row.ico) || row.name;
+      if (!byIco.has(key)) byIco.set(key, row);
+    }
+    res.json({ success: true, entities: [...byIco.values()].slice(0, 20) });
   } catch (error) {
     next(error);
   }

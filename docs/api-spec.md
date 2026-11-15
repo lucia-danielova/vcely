@@ -355,12 +355,16 @@ Response:
 ## 6. Registry and verification endpoints
 
 ### POST /api/registry/verify-entity
-Validates an entity by ICO or business identifier.
+Looks up a company/farmer by IČO across free public registers:
+ŠÚ SR RPO (`api.statistics.sk`), RegisterUZ, ORSR, and Slovensko.Digital Datahub RUZ.
+When `APINO_API_KEY` is set on the server, also queries Apino.sk RPO (org + people/štatutári).
+Merges name, IČO, seat, DIČ, people and other public fields. Database cache is optional.
+Never put the Apino key in frontend code or git — only `.env` / host secrets.
 
 Request body:
 ```json
 {
-  "ico": "00123456"
+  "ico": "47700203"
 }
 ```
 
@@ -369,12 +373,17 @@ Response:
 {
   "success": true,
   "entity": {
-    "name": "Example Company Ltd.",
-    "ico": "00123456",
-    "status": "active"
+    "name": "NaVidieku.sk s. r. o.",
+    "ico": "47700203",
+    "address": "Kadnárova 62, 83153 Bratislava - mestská časť Rača",
+    "city": "Bratislava - mestská časť Rača",
+    "source": "ŠÚ SR RPO (api.statistics.sk) + RegisterUZ.sk (MF SR) + …"
   }
 }
 ```
+
+### GET /api/registry/entities?q=
+Name or IČO search against the same live public registers (plus optional DB cache).
 
 ### GET /api/registry/lpis
 Returns LPIS parcel listings relevant to the authenticated user. Requires authentication.

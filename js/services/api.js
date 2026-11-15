@@ -1,7 +1,7 @@
 /**
  * @file api.js
  * @description Produkčný konektor na bezplatné štátne registre SR:
- *  1. Register účtovných jednotiek MF SR (registeruz.sk) — IČO, názov, sídlo, právna forma
+ *  1. RPO ŠÚ SR + RegisterUZ MF SR + ORSR — IČO/názov, sídlo, DIČ (multi-source, bez API kľúčov)
  *  2. Kataster nehnuteľností ÚGKK SR (zbgisws.skgeodesy.sk ArcGIS REST) — Parcely C-KN (vrstva 1) a E-KN (vrstva 2)
  *  3. Geoportál LPIS / PPA / ZBGIS — Pôdne bloky a výškopis DMR (Open-Meteo Elevation Bpv)
  *  4. OpenStreetMap Nominatim — Geokódovanie obcí, adries a katastrálnych území
@@ -10,6 +10,7 @@
 
 import { CircuitBreaker } from './circuit-breaker.js';
 import { store } from '../core/state-store.js';
+import { lookupEntityByIco, searchEntitiesByQuery, padIco } from './registry-lookup.js';
 
 if (typeof window.proj4 !== 'undefined') {
     window.proj4.defs(
@@ -34,10 +35,13 @@ const SLOVAK_KU_CATALOG = [
 
 export class AgroApiService {
     constructor() {
-        this._registerBreaker = new CircuitBreaker(this._fetchRegisterUzWithCors.bind(this), {
-            failureThreshold: 3,
-            cooldownPeriod: 10000
-        });
+        this._registerBreaker = new CircuitBreaker(
+            async (query, signal) => lookupEntityByIco(query, signal),
+            {
+                failureThreshold: 4,
+                cooldownPeriod: 12000
+            }
+        );
         this.currentController = null;
     }
 
@@ -71,68 +75,75 @@ export class AgroApiService {
         return directResponse.json();
     }
 
-    /**
-     * 1. ŠTÁTNY REGISTER ÚČTOVNÝCH JEDNOTIEK (RegisterUZ.sk) — Verejné API MF SR
-     */
-    async _fetchRegisterUzWithCors(ico, signal) {
-        const cleanIco = ico.replace(/\s+/g, '').padStart(8, '0');
-        const listUrl = `https://www.registeruz.sk/cruz-public/api/uctovne-jednotky?zmenene-od=2000-01-01&ico=${cleanIco}`;
-        const searchData = await this._fetchWithCorsFallback(listUrl, signal);
-
-        if (!searchData || !searchData.id || searchData.id.length === 0) {
-            return null;
-        }
-
-        const detailUrl = `https://www.registeruz.sk/cruz-public/api/uctovna-jednotka?id=${searchData.id[0]}`;
-        return await this._fetchWithCorsFallback(detailUrl, signal);
-    }
-
     async fetchEntityByICO(ico) {
-        const cleanIco = ico.replace(/\s+/g, '');
+        const clean = String(ico || '').replace(/\s+/g, '');
+        const padded = padIco(clean);
 
-        // A. Kontrola v lokálnom registri subjektov
+        // A. Lokálny seed/cache (okamžitá odpoveď), ale živé registre majú prioritu nižšie ak treba doplniť
         const localEntities = store.getState().entities || [];
         const localHit = localEntities.find(
-            e => e.ico === cleanIco || e.ico === cleanIco.padStart(8, '0')
+            (e) => e.ico === clean || e.ico === padded || padIco(e.ico) === padded
         );
-        if (localHit) {
-            return { ...localHit, source: 'Lokálny register RÚZ SR' };
-        }
 
-        // B. Živé volanie štátneho API RegisterUZ.sk
         if (this.currentController) this.currentController.abort();
         this.currentController = new AbortController();
-        const timeoutId = setTimeout(() => this.currentController.abort(), 4200);
+        const timeoutId = setTimeout(() => this.currentController.abort(), 6500);
 
         try {
-            const entity = await this._registerBreaker.execute(cleanIco, this.currentController.signal);
+            const entity = await this._registerBreaker.execute(padded || clean, this.currentController.signal);
             clearTimeout(timeoutId);
 
-            if (entity && entity.nazovUJ) {
-                const street = entity.ulica ? entity.ulica.trim() : '';
-                const city = entity.mesto ? entity.mesto.trim() : 'Slovensko';
-                const psc = entity.psc ? entity.psc.trim() : '';
-                const fullAddr = `${street}${street && city ? ', ' : ''}${psc ? psc + ' ' : ''}${city}`.trim();
-                const coords = await this.geocodeAddress(fullAddr, city);
-
-                return {
-                    ico: entity.ico || cleanIco.padStart(8, '0'),
-                    dic: entity.dic || '',
-                    name: entity.nazovUJ,
-                    type: entity.pravnaForma ? `Právna forma: ${entity.pravnaForma}` : 'Registrovaný subjekt SR (RÚZ)',
-                    address: fullAddr,
-                    city: city,
-                    street: street,
-                    lat: coords.lat,
-                    lng: coords.lng,
-                    source: 'Živé API RegisterUZ.sk (MF SR)'
-                };
+            if (entity?.name) {
+                if ((!Number.isFinite(Number(entity.lat)) || !Number.isFinite(Number(entity.lng))) && (entity.address || entity.city)) {
+                    const coords = await this.geocodeAddress(entity.address || entity.city, entity.city || '');
+                    entity.lat = coords.lat;
+                    entity.lng = coords.lng;
+                }
+                store.upsertEntity?.(entity);
+                return entity;
             }
         } catch (error) {
             clearTimeout(timeoutId);
         }
 
+        if (localHit) {
+            return { ...localHit, source: localHit.source || 'Lokálny register aplikácie' };
+        }
+
         return null;
+    }
+
+    async searchRegistry(query) {
+        const value = String(query || '').trim();
+        if (!value) return [];
+
+        if (this.currentController) this.currentController.abort();
+        this.currentController = new AbortController();
+        const timeoutId = setTimeout(() => this.currentController.abort(), 6500);
+
+        try {
+            const live = await searchEntitiesByQuery(value, this.currentController.signal);
+            clearTimeout(timeoutId);
+            if (live.length) return live;
+        } catch (error) {
+            clearTimeout(timeoutId);
+        }
+
+        const normalized = value.toLowerCase();
+        const digits = value.replace(/\D/g, '');
+        const icoQuery = /^\d{6,10}$/.test(digits);
+        return (store.getState().entities || [])
+            .filter((entity) => {
+                const ico = String(entity.ico || '').replace(/\D/g, '');
+                const name = String(entity.name || '').toLowerCase();
+                const city = String(entity.city || '').toLowerCase();
+                if (icoQuery) {
+                    return ico === digits || ico === digits.padStart(8, '0') || ico.includes(digits);
+                }
+                // Name queries must match name/city — never treat empty digits as matching every IČO.
+                return name.includes(normalized) || city.includes(normalized);
+            })
+            .slice(0, 8);
     }
 
     /**
