@@ -30,7 +30,7 @@ body.saas-app.map-app-open > header.eco-header {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     overflow: visible;
-    z-index: 16;
+    z-index: 40;
     pointer-events: none;
 }
 
@@ -495,15 +495,16 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 #weather-safety-wrap {
     position: fixed;
     top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 18;
+    left: 392px;
+    right: 456px;
+    transform: none;
+    z-index: 40;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    width: max-content;
-    max-width: min(560px, calc(100vw - 32px));
+    width: auto;
+    max-width: none;
     pointer-events: none;
     background: transparent;
     border: 0;
@@ -512,11 +513,12 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 
 body.saas-app.map-app-open #weather-safety-wrap {
     top: 16px;
-    left: 50%;
-    right: auto;
-    width: max-content;
-    max-width: min(560px, calc(100vw - 32px));
-    transform: translateX(-50%);
+    left: 392px;
+    right: 456px;
+    width: auto;
+    max-width: none;
+    transform: none;
+    z-index: 40;
     align-items: center;
     overflow: visible;
     background: transparent;
@@ -957,6 +959,11 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
 }
 
 @media (max-width: 1279px) and (min-width: 768px) {
+    body.saas-app.map-app-open #weather-safety-wrap {
+        left: 392px;
+        right: 16px;
+    }
+
     body.saas-app.map-app-open #analysis-result-panel,
     body.saas-app.map-app-open #active-mode-badge {
         top: 72px;
@@ -984,6 +991,7 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
         height: var(--sheet-h, 46vh);
         border-radius: 20px 20px 0 0;
         flex-direction: column;
+        padding-top: 28px;
     }
 
     body.saas-app.map-app-open #left-sidebar .saas-rail {
@@ -1006,20 +1014,16 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
 
     body.saas-app.map-app-open .saas-sheet-handle {
         position: absolute;
-        top: 2px;
+        top: 4px;
         left: 0;
         right: 0;
         z-index: 4;
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 22px;
+        height: 18px;
         cursor: grab;
         touch-action: none;
-    }
-
-    body.saas-app.map-app-open #left-sidebar .saas-rail {
-        margin-top: 14px;
     }
 
     body.saas-app.map-app-open .android-bottom-nav {
@@ -1037,10 +1041,6 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
     body.saas-app.map-app-open .android-bottom-nav button.is-active {
         color: #fbbf24;
         background: rgba(245, 158, 11, 0.16);
-    }
-
-    body.saas-app.map-app-open #weather-safety-wrap {
-        z-index: 24;
     }
 
     body.saas-app.map-app-open #weather-safety-pill {
