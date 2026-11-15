@@ -30,7 +30,7 @@ body.saas-app.map-app-open > header.eco-header {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     overflow: visible;
-    z-index: 30;
+    z-index: 40;
     pointer-events: none;
 }
 
@@ -85,10 +85,10 @@ body.saas-app.map-app-open #saas-layer-bar,
 body.saas-app.map-app-open #analysis-result-panel,
 body.saas-app.map-app-open #geo-coord-pill,
 body.saas-app.map-app-open #map-tool-rail {
-    background: rgba(22, 34, 24, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 16px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    background: rgba(16, 26, 19, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     color: #e8f2eb;
 }
 
@@ -107,8 +107,8 @@ body.saas-app.map-app-open #left-sidebar {
     pointer-events: auto;
     overflow: hidden;
     padding: 0;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 body.saas-app.map-app-open #left-sidebar.w-0,
@@ -203,6 +203,7 @@ body.saas-app.map-app-open #app-workspace.mobile-sidebar-collapsed #left-sidebar
 .saas-omni {
     position: relative;
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     padding: 10px 12px 0;
 }
@@ -260,16 +261,16 @@ body.saas-app.map-app-open #app-workspace.mobile-sidebar-collapsed #left-sidebar
 
 .saas-omni-filters,
 .saas-omni-suggest {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 12px;
-    right: 12px;
+    position: relative;
+    flex: 1 0 100%;
     z-index: 5;
+    max-height: 180px;
+    overflow: auto;
     padding: 8px;
-    border-radius: 14px;
-    background: rgba(16, 26, 18, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    border-radius: 20px;
+    background: rgba(16, 26, 19, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 .saas-omni-filters {
@@ -462,8 +463,25 @@ body.saas-app.map-app-open #left-sidebar .bg-emerald-50\/40 {
 }
 
 body.saas-app.map-app-open #persona-quick-banner {
-    background: transparent;
-    border-color: rgba(255, 255, 255, 0.1);
+    display: none;
+}
+
+body.saas-app[data-mode="beekeeper"] .saas-mode-switch button.is-active,
+body.saas-app[data-mode="hobby"] .saas-mode-switch button.is-active {
+    background: rgba(245, 158, 11, 0.24);
+    border-color: #fbbf24;
+}
+
+body.saas-app[data-mode="beekeeper"] .saas-spray-notices {
+    outline: 1px solid rgba(251, 191, 36, 0.85);
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.28);
+}
+
+body.saas-app.map-app-open #left-sidebar .border-stone-200,
+body.saas-app.map-app-open #left-sidebar .border-stone-300,
+body.saas-app.map-app-open #analysis-result-panel .border-stone-200,
+body.saas-app.map-app-open #analysis-result-panel .border-emerald-500\/40 {
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-track {
@@ -477,15 +495,16 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 #weather-safety-wrap {
     position: fixed;
     top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 24;
+    left: 392px;
+    right: 456px;
+    transform: none;
+    z-index: 40;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    width: max-content;
-    max-width: min(760px, calc(100vw - 400px));
+    width: auto;
+    max-width: none;
     pointer-events: none;
     background: transparent;
     border: 0;
@@ -493,12 +512,13 @@ body.saas-app.map-app-open #left-sidebar .custom-scrollbar::-webkit-scrollbar-th
 }
 
 body.saas-app.map-app-open #weather-safety-wrap {
-    top: 84px;
+    top: 16px;
     left: 392px;
-    right: 78px;
+    right: 456px;
     width: auto;
     max-width: none;
     transform: none;
+    z-index: 40;
     align-items: center;
     overflow: visible;
     background: transparent;
@@ -507,14 +527,6 @@ body.saas-app.map-app-open #weather-safety-wrap {
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-}
-
-@media (min-width: 1280px) {
-    body.saas-app.map-app-open #weather-safety-wrap {
-        top: 16px;
-        right: 456px;
-        overflow: hidden;
-    }
 }
 
 #weather-safety-pill,
@@ -533,11 +545,11 @@ body.saas-app.map-app-open #weather-safety-wrap {
     border: 0;
     border-radius: 999px;
     padding: 8px 10px 8px 12px;
-    background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    background: rgba(16, 26, 19, 0.90);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     color: #f8faf8;
     cursor: pointer;
     text-align: left;
@@ -605,12 +617,12 @@ body.saas-app.map-app-open #weather-safety-wrap {
 #weather-condition-card {
     width: min(320px, 100%);
     padding: 12px 14px;
-    border-radius: 16px;
-    background: rgba(22, 34, 24, 0.78);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    border-radius: 20px;
+    background: rgba(16, 26, 19, 0.90);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     color: #e8f2eb;
 }
 
@@ -655,8 +667,8 @@ body.saas-app.map-app-open #active-mode-badge {
     gap: 6px;
     padding: 6px;
     pointer-events: auto;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 #saas-layer-bar button {
@@ -728,8 +740,8 @@ body.saas-app.map-app-open #analysis-result-panel {
     opacity: 0;
     transform: translateY(10px);
     transition: opacity 0.28s ease, transform 0.28s ease;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 body.saas-app.map-app-open #analysis-result-panel.is-visible {
@@ -784,14 +796,14 @@ body.saas-app.map-app-open #map-tool-rail {
     pointer-events: auto;
     max-height: calc(100vh - 220px);
     overflow: auto;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 body.saas-app.map-app-open #map-tool-rail button {
     background: rgba(255, 255, 255, 0.06);
     color: #f8faf8;
-    border-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 body.saas-app.map-app-open #geo-coord-pill {
@@ -810,54 +822,37 @@ body.saas-app.map-app-open #geo-coord-pill {
     padding: 8px 12px;
     cursor: pointer;
     pointer-events: auto;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     color: #e8f2eb;
 }
 
 .geo-pill-summary {
-    font-family: "Manrope", sans-serif;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-}
-
-body.saas-app.map-app-open #geo-coord-pill .geo-pill-details,
-body.saas-app.map-app-open #geo-coord-pill #geo-coord-copy {
     display: none;
 }
 
-body.saas-app.map-app-open #geo-coord-pill.is-open {
-    flex-direction: column;
-    align-items: flex-start;
-    max-width: min(420px, calc(100vw - 32px));
-}
-
-body.saas-app.map-app-open #geo-coord-pill.is-open .geo-pill-summary {
-    display: none;
-}
-
-body.saas-app.map-app-open #geo-coord-pill.is-open .geo-pill-details {
+body.saas-app.map-app-open #geo-coord-pill .geo-pill-details {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
 }
 
-body.saas-app.map-app-open #geo-coord-pill.is-open #footer-latlng,
-body.saas-app.map-app-open #geo-coord-pill.is-open #footer-zoom {
+body.saas-app.map-app-open #geo-coord-pill .geo-pill-details > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+}
+
+body.saas-app.map-app-open #geo-coord-pill #footer-latlng,
+body.saas-app.map-app-open #geo-coord-pill #footer-zoom {
     display: inline !important;
 }
 
-body.saas-app.map-app-open #geo-coord-pill.is-open #geo-coord-copy {
-    display: inline-flex;
-    border: 0;
-    border-radius: 999px;
-    padding: 6px 10px;
-    background: #f59e0b;
-    color: #1c1403;
-    font-size: 11px;
-    font-weight: 800;
-    cursor: pointer;
+body.saas-app.map-app-open #geo-coord-pill #geo-coord-copy {
+    display: none;
 }
 
 body.saas-app.map-app-open #geo-coord-pill #footer-jtsk,
@@ -879,16 +874,16 @@ body.saas-app.map-app-open #geo-coord-pill #footer-zoom {
 }
 
 .saas-fab-menu button {
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
     padding: 10px 12px;
-    background: rgba(22, 34, 24, 0.9);
+    background: rgba(16, 26, 19, 0.90);
     color: #f8faf8;
     font-size: 12px;
     font-weight: 800;
     text-align: left;
     cursor: pointer;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
 }
 
 .saas-geo-fab {
@@ -905,18 +900,18 @@ body.saas-app.map-app-open #geo-coord-pill #footer-zoom {
     color: #052e1c;
     font-size: 22px;
     font-weight: 800;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
     cursor: pointer;
     align-items: center;
     justify-content: center;
 }
 
 body.saas-app.map-app-open #toast-container {
-    top: 78px;
+    top: auto;
     right: auto;
-    bottom: auto;
+    bottom: 56px;
     left: 392px;
-    max-width: 280px;
+    max-width: 320px;
 }
 
 body.saas-app.map-app-open .leaflet-control-attribution {
@@ -940,12 +935,13 @@ body.saas-app.map-app-open .leaflet-bottom.leaflet-left {
 }
 
 body.saas-app.map-app-open .leaflet-top.leaflet-left {
-    top: 16px;
+    top: 72px;
     left: 392px;
 }
 
 .hive-radius-honey {
-    fill: url(#hive-amber-fade) !important;
+    fill: #F59E0B !important;
+    fill-opacity: 0.22 !important;
     stroke: #F59E0B !important;
     stroke-dasharray: 8 7;
     stroke-width: 1.5px;
@@ -954,25 +950,27 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
 
 .hive-radius-warning,
 .lpis-collision-hatch {
-    fill: url(#hive-hatch) !important;
-    stroke: #e11d48 !important;
-    stroke-dasharray: 4 5;
+    fill: #EA580C !important;
+    fill-opacity: 0.28 !important;
+    stroke: #F97316 !important;
+    stroke-dasharray: 5 6;
     stroke-width: 2px;
-    filter: drop-shadow(0 0 6px rgba(225, 29, 72, 0.65));
+    filter: drop-shadow(0 0 6px rgba(234, 88, 12, 0.7));
 }
 
 @media (max-width: 1279px) and (min-width: 768px) {
-    body.saas-app.map-app-open #analysis-result-panel,
-    body.saas-app.map-app-open #active-mode-badge,
-    body.saas-app.map-app-open #toast-container {
-        top: 176px;
+    body.saas-app.map-app-open #weather-safety-wrap {
+        left: 392px;
+        right: 16px;
     }
 
-    body.saas-app.map-app-open #weather-spray-status {
-        flex-shrink: 1;
-        white-space: normal;
-        overflow: visible;
-        text-overflow: unset;
+    body.saas-app.map-app-open #analysis-result-panel,
+    body.saas-app.map-app-open #active-mode-badge {
+        top: 72px;
+    }
+
+    body.saas-app.map-app-open #saas-layer-bar {
+        top: 68px;
     }
 }
 
@@ -993,6 +991,7 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
         height: var(--sheet-h, 46vh);
         border-radius: 20px 20px 0 0;
         flex-direction: column;
+        padding-top: 28px;
     }
 
     body.saas-app.map-app-open #left-sidebar .saas-rail {
@@ -1009,13 +1008,44 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
         min-height: 44px;
     }
 
+    body.saas-app.map-app-open .saas-dock-main {
+        position: static;
+    }
+
     body.saas-app.map-app-open .saas-sheet-handle {
+        position: absolute;
+        top: 4px;
+        left: 0;
+        right: 0;
+        z-index: 4;
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 22px;
+        height: 18px;
         cursor: grab;
         touch-action: none;
+    }
+
+    body.saas-app.map-app-open .android-bottom-nav {
+        background: rgba(16, 26, 19, 0.90);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    body.saas-app.map-app-open .android-bottom-nav button {
+        color: rgba(232, 242, 235, 0.78);
+    }
+
+    body.saas-app.map-app-open .android-bottom-nav button.is-active {
+        color: #fbbf24;
+        background: rgba(245, 158, 11, 0.16);
+    }
+
+    body.saas-app.map-app-open #weather-safety-pill {
+        flex-wrap: nowrap;
+        width: 100%;
     }
 
     .saas-sheet-handle span {
@@ -1123,6 +1153,25 @@ body.saas-app.map-app-open .leaflet-top.leaflet-left {
     body.saas-app.map-app-open .leaflet-bottom.leaflet-left {
         left: 10px;
         bottom: calc(var(--sheet-h, 46vh) + 74px);
+    }
+}
+
+@media (max-width: 1023px) {
+    body.saas-app.map-app-open .android-bottom-nav {
+        background: rgba(16, 26, 19, 0.90);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    body.saas-app.map-app-open .android-bottom-nav button {
+        color: rgba(232, 242, 235, 0.78);
+    }
+
+    body.saas-app.map-app-open .android-bottom-nav button.is-active {
+        color: #fbbf24;
+        background: rgba(245, 158, 11, 0.16);
     }
 }
 

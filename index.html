@@ -345,7 +345,7 @@
             </div>
             <div class="saas-omni">
                 <input id="saas-omnibox" type="search" autocomplete="off" placeholder="Hľadať parcelu, IČO, kataster alebo obec..." aria-label="Hľadať parcelu, IČO, kataster alebo obec">
-                <button type="button" id="saas-omni-filter" class="saas-filter-btn" aria-expanded="false" aria-controls="saas-omni-filters" title="Rýchly filter">▾</button>
+                <button type="button" id="saas-omni-filter" class="saas-filter-btn" aria-expanded="false" aria-controls="saas-omni-filters" aria-label="Rýchly filter" title="Rýchly filter">▾</button>
                 <div id="saas-omni-filters" class="saas-omni-filters" hidden>
                     <button type="button" data-omni-filter="ckn">C-KN</button>
                     <button type="button" data-omni-filter="ekn">E-KN</button>
@@ -356,9 +356,9 @@
                 <div id="saas-omni-suggest" class="saas-omni-suggest" hidden></div>
             </div>
             <div class="saas-mode-switch" role="tablist" aria-label="Režim aplikácie">
-                <button type="button" data-dashboard-mode="hobby">Hobby</button>
-                <button type="button" data-dashboard-mode="farmer" class="is-active">Farmár</button>
-                <button type="button" data-dashboard-mode="beekeeper">Včelár</button>
+                <button type="button" data-dashboard-mode="hobby" title="Hobby / Záhradkár">Hobby</button>
+                <button type="button" data-dashboard-mode="farmer" class="is-active" title="Profi Poľnohospodár">Profi</button>
+                <button type="button" data-dashboard-mode="beekeeper" title="Včelár">Včelár</button>
             </div>
             <button type="button" id="farmer-spray-report-btn" class="saas-farmer-only" onclick="openSprayBook()">Nahlásiť plánovaný postrek</button>
             <div class="saas-beekeeper-only">
@@ -422,15 +422,15 @@
                     <div class="grid grid-cols-1 gap-2">
                         <button id="hobby-primary-action-btn" onclick="toggleAddHiveMode()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2">
                             <span>🐝</span>
-                            <span>1. Kliknite sem a vyznačte svoje úle v mape</span>
-                        </button>
-                        <button onclick="toggleDrawPolygonMode()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
-                            <span>🌱</span>
-                            <span>2. Nakresliť vlastnú záhradu / sad (výmera v ha)</span>
+                            <span>Pridať úľ kliknutím</span>
                         </button>
                         <button onclick="toggleSpraySimulation()" class="w-full bg-white hover:bg-stone-100 text-slate-800 border border-stone-300 font-bold text-xs py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2">
                             <span>⚠️</span>
-                            <span>3. Skontrolovať 3 km okolie pred postrekom</span>
+                            <span>Skontrolovať okolie</span>
+                        </button>
+                        <button onclick="toggleDrawPolygonMode()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+                            <span>🌱</span>
+                            <span>Zakresliť záhradu</span>
                         </button>
                     </div>
                 </div>
@@ -757,7 +757,7 @@
                             <div id="sp-user-assets-list" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar text-xs"></div>
                         </div>
 
-                        <div class="eco-card rounded-2xl p-3.5 space-y-2">
+                        <div class="eco-card saas-spray-notices rounded-2xl p-3.5 space-y-2">
                             <div class="flex items-center justify-between">
                                 <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">Hlásenia o postrekoch</span>
                                 <span id="sp-alerts-count" class="text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">0</span>
@@ -1305,7 +1305,7 @@
             </div>
             
             <!-- Spodná geodetická lišta -->
-            <footer id="geo-coord-pill" class="bg-white border-t border-stone-200 h-8 px-4 flex items-center justify-between text-[11px] text-slate-600 z-20 shrink-0 font-mono" role="button" tabindex="0" title="Kliknutím rozbalíte súradnice" aria-expanded="false">
+            <footer id="geo-coord-pill" class="bg-white border-t border-stone-200 h-8 px-4 flex items-center justify-between text-[11px] text-slate-600 z-20 shrink-0 font-mono" role="button" tabindex="0" title="Kliknutím skopírujete súradnice" aria-label="Súradnice mapy, kliknutím skopírujete">
                 <span class="geo-pill-summary">Súradnice</span>
                 <div class="geo-pill-details">
                     <div class="flex items-center space-x-3 overflow-hidden">
@@ -1372,7 +1372,7 @@
         <button type="button" id="saas-fab-hive">🐝 Pridať úľ na mape</button>
         <button type="button" id="saas-fab-spray">⚠ Overiť postrek podľa GPS</button>
     </div>
-    <button type="button" id="saas-geo-fab" class="saas-geo-fab" aria-label="Rýchla akcia v teréne" aria-expanded="false" aria-controls="saas-fab-menu">+</button>
+    <button type="button" id="saas-geo-fab" class="saas-geo-fab" aria-label="Moja poloha" title="Moja poloha">⌖</button>
 
     <div id="analysis-result-panel" class="eco-card rounded-2xl p-4 space-y-2 border-2 border-emerald-500/40 bg-white" aria-live="polite">
         <div class="flex items-center justify-between border-b border-stone-200 pb-1.5">
